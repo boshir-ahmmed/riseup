@@ -20,8 +20,17 @@ import {
   INITIAL_FOUNDER_PITCHES
 } from '../data/mockData';
 
-const supabaseUrl = (((import.meta as any).env?.VITE_SUPABASE_URL as string) || '').trim();
-const supabaseAnonKey = (((import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string) || '').trim();
+const DEFAULT_SUPABASE_URL = 'https://uxsqqfjnakhvtqrbsljb.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_9D5ldXisHhE6S_WW59OfMg_lqiCJZvq';
+
+const envUrl = (((import.meta as any).env?.VITE_SUPABASE_URL as string) || '').trim();
+const envKey = (((import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string) || '').trim();
+
+const storedUrl = (typeof window !== 'undefined' ? localStorage.getItem('riseup_supabase_url') || '' : '').trim();
+const storedKey = (typeof window !== 'undefined' ? localStorage.getItem('riseup_supabase_key') || '' : '').trim();
+
+export const supabaseUrl = envUrl || storedUrl || DEFAULT_SUPABASE_URL;
+export const supabaseAnonKey = envKey || storedKey || DEFAULT_SUPABASE_ANON_KEY;
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&

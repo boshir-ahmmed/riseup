@@ -21,8 +21,11 @@ import {
 import {
   isSupabaseConfigured,
   testSupabaseConnection,
-  seedAllDemoDataToSupabase
+  seedAllDemoDataToSupabase,
+  supabaseUrl,
+  supabaseAnonKey
 } from '../../lib/supabase';
+import fullSqlScript from '../../../supabase_schema_and_seed.sql?raw';
 
 interface SupabaseManagerModalProps {
   isOpen: boolean;
@@ -46,23 +49,27 @@ export const SupabaseManagerModal: React.FC<SupabaseManagerModalProps> = ({
 
   const handleCopySql = async () => {
     try {
-      const response = await fetch('/supabase_schema_and_seed.sql');
-      const text = await response.text();
-      await navigator.clipboard.writeText(text);
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(fullSqlScript);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = fullSqlScript;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      // Fallback
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     }
   };
 
-  const handleDownloadSql = async () => {
+  const handleDownloadSql = () => {
     try {
-      const response = await fetch('/supabase_schema_and_seed.sql');
-      const text = await response.text();
-      const blob = new Blob([text], { type: 'text/sql' });
+      const blob = new Blob([fullSqlScript], { type: 'text/sql' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -258,23 +265,24 @@ export const SupabaseManagerModal: React.FC<SupabaseManagerModalProps> = ({
                 </a>
               </div>
 
-              {/* SQL Code Preview */}
+              {/* SQL Code Box with instant copy */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                  <span className="font-semibold">SQL Migration Preview (1,134 lines with schema + demo seed):</span>
-                  <span>File: /supabase_schema_and_seed.sql</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-200">
+                    Ready-to-Run SQL Migration Script ({fullSqlScript.split('\n').length.toLocaleString()} lines):
+                  </span>
+                  <button
+                    onClick={handleCopySql}
+                    className="text-xs text-emerald-600 dark:text-emerald-400 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copied ? 'Copied to Clipboard!' : 'Copy Code'}</span>
+                  </button>
                 </div>
-                <div className="p-4 rounded-2xl bg-slate-950 text-slate-300 font-mono text-[11px] leading-relaxed border border-slate-800 max-h-48 overflow-y-auto">
-                  <p className="text-emerald-400">-- 1. Creates public.users, public.startups, public.posts, public.conversations, public.messages</p>
-                  <p className="text-emerald-400">-- 2. Creates public.investor_requests, public.mentor_requests, public.founder_pitches</p>
-                  <p className="text-emerald-400">-- 3. Enables Row Level Security (RLS) with full public demo access policies</p>
-                  <p className="text-emerald-400">-- 4. Injects all initial founders, startups, valuations, and community posts!</p>
-                  <br />
-                  <p className="text-slate-400">CREATE TABLE IF NOT EXISTS public.users ( id TEXT PRIMARY KEY, name TEXT NOT NULL, ... );</p>
-                  <p className="text-slate-400">CREATE TABLE IF NOT EXISTS public.startups ( id TEXT PRIMARY KEY, name TEXT NOT NULL, valuation NUMERIC, ... );</p>
-                  <p className="text-slate-400">CREATE TABLE IF NOT EXISTS public.posts ( id TEXT PRIMARY KEY, content TEXT, "likesCount" INTEGER, ... );</p>
-                  <p className="text-slate-400">INSERT INTO public.users (...) VALUES ('user-founder-1', 'Sarah Chen', ...);</p>
-                  <p className="text-slate-400">INSERT INTO public.startups (...) VALUES ('startup-1', 'NeuroPulse AI', ...);</p>
+                <div className="relative rounded-2xl bg-slate-950 border border-slate-800 p-4 max-h-72 overflow-y-auto">
+                  <pre className="text-slate-300 font-mono text-[11px] leading-relaxed select-all whitespace-pre-wrap">
+                    {fullSqlScript}
+                  </pre>
                 </div>
               </div>
             </div>
