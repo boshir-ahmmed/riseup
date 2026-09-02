@@ -8,8 +8,12 @@ class SoundManager {
   constructor() {
     // Lazy initialize AudioContext on user gesture
     if (typeof window !== 'undefined') {
-      const savedMute = localStorage.getItem('riseup_sound_muted');
-      this.isMuted = savedMute === 'true';
+      try {
+        const savedMute = localStorage.getItem('riseup_sound_muted');
+        this.isMuted = savedMute === 'true';
+      } catch {
+        this.isMuted = false;
+      }
     }
   }
 
@@ -30,7 +34,11 @@ class SoundManager {
   public toggleMute(): boolean {
     this.isMuted = !this.isMuted;
     if (typeof window !== 'undefined') {
-      localStorage.setItem('riseup_sound_muted', String(this.isMuted));
+      try {
+        localStorage.setItem('riseup_sound_muted', String(this.isMuted));
+      } catch {
+        // Ignore storage errors
+      }
     }
     return this.isMuted;
   }

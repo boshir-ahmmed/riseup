@@ -11,6 +11,7 @@ import {
   Layers,
   Users,
   Compass,
+  Briefcase,
   FileCode2,
   LogOut,
   ChevronDown,
@@ -134,8 +135,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 >
                   {currentUser.role === 'founder' ? (
                     <>
-                      <Users className="w-4 h-4 text-indigo-500" />
-                      <span>Explore Founders</span>
+                      <Briefcase className="w-4 h-4 text-indigo-500" />
+                      <span>Explore Investor</span>
                     </>
                   ) : (
                     <>

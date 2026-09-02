@@ -9,6 +9,7 @@ import {
   Sparkles,
   Eye
 } from 'lucide-react';
+import { compressImage } from '../../utils/imageUtils';
 
 interface ImageUploadFieldProps {
   label: string;
@@ -43,15 +44,15 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
     else return (bytes / 1048576).toFixed(1) + ' MB';
   };
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       alert('Please upload an image file (PNG, JPG, JPEG, WebP, GIF, SVG).');
       return;
     }
 
-    // Limit check (e.g. 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      alert('Image file size should be less than 10MB.');
+    // Limit check (e.g. 15MB)
+    if (file.size > 15 * 1024 * 1024) {
+      alert('Image file size should be less than 15MB.');
       return;
     }
 
@@ -61,13 +62,28 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
     });
     setPreviewError(false);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (e.target?.result && typeof e.target.result === 'string') {
-        onChange(e.target.result);
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const maxWidth = aspectRatio === 'banner' ? 1280 : aspectRatio === 'avatar' || aspectRatio === 'logo' ? 400 : 960;
+      const maxHeight = aspectRatio === 'banner' ? 640 : aspectRatio === 'avatar' || aspectRatio === 'logo' ? 400 : 720;
+
+      const compressedUrl = await compressImage(file, {
+        maxWidth,
+        maxHeight,
+        quality: 0.75,
+        mimeType: 'image/jpeg'
+      });
+      onChange(compressedUrl);
+    } catch (err) {
+      console.error('Failed to compress image:', err);
+      // Fallback
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target?.result && typeof e.target.result === 'string') {
+          onChange(e.target.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const onDragOver = (e: React.DragEvent) => {

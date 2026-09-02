@@ -28,6 +28,7 @@ import { AuthModal } from './components/modals/AuthModal';
 import { LoginPage } from './components/auth/LoginPage';
 import { ToastContainer } from './components/common/ToastContainer';
 import { AudioCallModal } from './components/common/AudioCallModal';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 const AppContent: React.FC = () => {
   const {
@@ -153,8 +154,10 @@ const AppContent: React.FC = () => {
 
 export default function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }

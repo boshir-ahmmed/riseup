@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Post, PostComment, ReactionType } from '../../types';
+import { Post, PostComment } from '../../types';
 import {
   Heart,
   MessageCircle,
@@ -19,9 +19,6 @@ import {
   CheckCircle2,
   Trash2,
   ExternalLink,
-  Flame,
-  Lightbulb,
-  ThumbsUp,
   PhoneCall,
   User as UserIcon
 } from 'lucide-react';
@@ -31,14 +28,6 @@ interface PostCardProps {
   post: Post;
   onOpenDetails?: () => void;
 }
-
-const REACTION_CONFIGS: { type: ReactionType; label: string; emoji: string; icon: typeof ThumbsUp; color: string }[] = [
-  { type: 'like', label: 'Like', emoji: '👍', icon: ThumbsUp, color: 'text-blue-500 hover:text-blue-600' },
-  { type: 'celebrate', label: 'Celebrate', emoji: '🚀', icon: Rocket, color: 'text-emerald-500 hover:text-emerald-600' },
-  { type: 'insightful', label: 'Insightful', emoji: '💡', icon: Lightbulb, color: 'text-amber-500 hover:text-amber-600' },
-  { type: 'love', label: 'Love', emoji: '❤️', icon: Heart, color: 'text-rose-500 hover:text-rose-600' },
-  { type: 'fire', label: 'Hot', emoji: '🔥', icon: Flame, color: 'text-orange-500 hover:text-orange-600' }
-];
 
 export const PostCard: React.FC<PostCardProps> = ({ post, onOpenDetails }) => {
   const {
@@ -58,16 +47,25 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenDetails }) => {
   } = useApp();
 
   const [showComments, setShowComments] = useState(false);
-  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [showHeartBurst, setShowHeartBurst] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [copiedShare, setCopiedShare] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
-  const handleSelectReaction = (type: ReactionType) => {
-    reactToPost(post.id, type);
-    setShowReactionPicker(false);
+  const handleToggleLove = () => {
+    reactToPost(post.id, 'love');
+  };
+
+  const handleDoubleTap = () => {
+    setShowHeartBurst(true);
+    if (!post.isLiked && post.userReaction !== 'love') {
+      reactToPost(post.id, 'love');
+    }
+    setTimeout(() => {
+      setShowHeartBurst(false);
+    }, 850);
   };
 
   const handleBookmark = () => {
@@ -135,10 +133,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenDetails }) => {
   const TypeIcon = typeConfig.icon;
   const canDelete = currentUser.id === post.authorId || currentUser.role === 'admin';
   const authorUser = users.find(u => u.id === post.authorId);
-
-  const activeReactionConfig = post.userReaction
-    ? REACTION_CONFIGS.find(r => r.type === post.userReaction)
-    : null;
+  const isLoved = post.isLiked || post.userReaction === 'love';
 
   return (
     <article
@@ -335,31 +330,43 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenDetails }) => {
         )}
       </div>
 
-      {/* Media attachment */}
+      {/* Media attachment with Instagram double-tap to love */}
       {post.mediaUrl && (
-        <div className="relative mt-2 bg-slate-950 border-y border-slate-200 dark:border-slate-800">
+        <div
+          onDoubleClick={handleDoubleTap}
+          className="relative mt-2 bg-slate-950 border-y border-slate-200 dark:border-slate-800 select-none overflow-hidden cursor-pointer group"
+          title="Double tap to love"
+        >
           <img
             src={post.mediaUrl}
             alt={post.title || 'Startup media'}
             referrerPolicy="no-referrer"
             className="w-full max-h-96 object-cover hover:opacity-95 transition"
           />
+
+          {/* Instagram Heart Burst Animation Overlay */}
+          {showHeartBurst && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+              <div className="animate-in zoom-in-50 fade-in duration-200">
+                <Heart className="w-24 h-24 fill-rose-500 text-rose-500 drop-shadow-[0_10px_25px_rgba(244,63,94,0.5)] animate-bounce" />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Interaction Metrics Bar */}
       <div className="px-4 sm:px-5 py-2.5 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800/80">
         <div className="flex items-center gap-2.5">
-          {/* Reaction icons stack */}
-          <div className="flex items-center -space-x-1">
-            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-500/10 text-[11px]">👍</span>
-            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/10 text-[11px]">🚀</span>
-            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-500/10 text-[11px]">❤️</span>
+          {/* Single Instagram Love React counter */}
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-500/10 text-rose-500">
+              <Heart className="w-3 h-3 fill-rose-500 text-rose-500" />
+            </span>
+            <span className="font-medium text-slate-700 dark:text-slate-300">
+              <strong>{post.likesCount}</strong> {post.likesCount === 1 ? 'like' : 'likes'}
+            </span>
           </div>
-
-          <span className="font-medium text-slate-700 dark:text-slate-300">
-            <strong>{post.likesCount}</strong> {post.likesCount === 1 ? 'reaction' : 'reactions'}
-          </span>
 
           <span>•</span>
 
@@ -378,45 +385,27 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenDetails }) => {
         </div>
       </div>
 
-      {/* Action Buttons Row with Real-Time Reaction Bar */}
+      {/* Action Buttons Row with Instagram Love React */}
       <div className="px-3 sm:px-4 py-1.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-around text-xs font-semibold relative">
-        {/* Floating Multi-Reaction Tray */}
-        {showReactionPicker && (
-          <div
-            id={`reaction-picker-tray-${post.id}`}
-            className="absolute bottom-11 left-3 bg-white dark:bg-slate-850 shadow-2xl border border-slate-200 dark:border-slate-750 rounded-full py-1.5 px-3 flex items-center gap-2 z-40 animate-in slide-in-from-bottom-2 fade-in duration-150"
-            onMouseLeave={() => setShowReactionPicker(false)}
-          >
-            {REACTION_CONFIGS.map(reaction => (
-              <button
-                key={reaction.type}
-                onClick={() => handleSelectReaction(reaction.type)}
-                className="hover:scale-125 transform transition duration-150 p-1 text-base flex flex-col items-center cursor-pointer group"
-                title={reaction.label}
-              >
-                <span>{reaction.emoji}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Reaction Button */}
+        {/* Single Instagram Love React Button */}
         <button
           id={`post-like-btn-${post.id}`}
-          onClick={() => handleSelectReaction(post.userReaction || 'like')}
-          onMouseEnter={() => setShowReactionPicker(true)}
-          className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-2 transition cursor-pointer ${
-            post.userReaction
-              ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30'
+          onClick={handleToggleLove}
+          className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-2 transition cursor-pointer active:scale-95 ${
+            isLoved
+              ? 'text-rose-600 dark:text-rose-400 bg-rose-50/80 dark:bg-rose-950/30 font-semibold'
               : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
+          title={isLoved ? 'Unlike' : 'Love'}
         >
-          {activeReactionConfig ? (
-            <span className="text-sm">{activeReactionConfig.emoji}</span>
-          ) : (
-            <ThumbsUp className="w-4 h-4" />
-          )}
-          <span>{activeReactionConfig ? activeReactionConfig.label : 'Like'}</span>
+          <Heart
+            className={`w-4 h-4 transition-transform duration-200 ${
+              isLoved
+                ? 'fill-rose-500 text-rose-500 scale-110'
+                : 'text-slate-500 dark:text-slate-400'
+            }`}
+          />
+          <span>{isLoved ? 'Loved' : 'Love'}</span>
         </button>
 
         <button

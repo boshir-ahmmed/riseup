@@ -4,6 +4,7 @@ import { RoleBadge } from '../layout/RoleBadge';
 import { PostCard } from '../feed/PostCard';
 import { EditProfileModal } from './EditProfileModal';
 import { PitchToFounderModal } from '../modals/PitchToFounderModal';
+import { compressImage } from '../../utils/imageUtils';
 import {
   MapPin,
   Building2,
@@ -64,29 +65,37 @@ export const ProfilePage: React.FC = () => {
 
   const userPosts = posts.filter(p => p.authorId === profileUser.id);
 
-  const handleAvatarFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onload = ev => {
-        if (ev.target?.result && typeof ev.target.result === 'string') {
-          updateUserProfile({ avatar: ev.target.result });
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file, {
+          maxWidth: 400,
+          maxHeight: 400,
+          quality: 0.8,
+          mimeType: 'image/jpeg'
+        });
+        updateUserProfile({ avatar: compressed });
+      } catch (err) {
+        console.error('Avatar upload failed:', err);
+      }
     }
   };
 
-  const handleCoverFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onload = ev => {
-        if (ev.target?.result && typeof ev.target.result === 'string') {
-          updateUserProfile({ coverImage: ev.target.result });
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file, {
+          maxWidth: 1400,
+          maxHeight: 600,
+          quality: 0.75,
+          mimeType: 'image/jpeg'
+        });
+        updateUserProfile({ coverImage: compressed });
+      } catch (err) {
+        console.error('Cover upload failed:', err);
+      }
     }
   };
 

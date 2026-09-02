@@ -11,12 +11,11 @@ import {
   Trash2,
   MoreHorizontal,
   ExternalLink,
-  ZoomIn
+  ZoomIn,
+  Heart
 } from 'lucide-react';
 import { MessageItem, User } from '../../types';
 import { VoiceNotePlayer } from './VoiceNotePlayer';
-
-const POPULAR_REACTIONS = ['❤️', '👍', '🔥', '🚀', '💡', '😂', '👏'];
 
 interface MessageItemBubbleProps {
   message: MessageItem;
@@ -47,8 +46,21 @@ export const MessageItemBubble: React.FC<MessageItemBubbleProps> = ({
 }) => {
   const [showOptionsDropdown, setShowOptionsDropdown] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showHeartBurst, setShowHeartBurst] = useState(false);
 
-  const hasReactions = message.reactions && Object.keys(message.reactions).length > 0;
+  const loveUsers = (message.reactions?.['❤️'] || []) as string[];
+  const isUserLoved = loveUsers.includes(currentUser.name);
+  const totalLoves = loveUsers.length;
+
+  const handleDoubleClickBubble = () => {
+    setShowHeartBurst(true);
+    if (!isUserLoved) {
+      onReact(message.id, '❤️');
+    }
+    setTimeout(() => {
+      setShowHeartBurst(false);
+    }, 850);
+  };
 
   const handleCopyText = () => {
     navigator.clipboard.writeText(message.text);
@@ -103,20 +115,19 @@ export const MessageItemBubble: React.FC<MessageItemBubbleProps> = ({
             isMine ? 'right-2' : 'left-2'
           }`}
         >
-          {/* Reaction Emojis */}
-          <div className="flex items-center gap-0.5 border-r border-slate-200 dark:border-slate-700 pr-1.5 mr-1">
-            {POPULAR_REACTIONS.slice(0, 5).map(emoji => (
-              <button
-                key={emoji}
-                type="button"
-                onClick={() => onReact(message.id, emoji)}
-                className="hover:scale-130 active:scale-95 transition-transform p-0.5 text-xs cursor-pointer"
-                title={`React with ${emoji}`}
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
+          {/* Instagram Single Love React */}
+          <button
+            type="button"
+            onClick={() => onReact(message.id, '❤️')}
+            className={`p-1 transition-transform active:scale-90 cursor-pointer rounded-full mr-1 border-r border-slate-200 dark:border-slate-700 pr-1.5 ${
+              isUserLoved
+                ? 'text-rose-500 hover:scale-110'
+                : 'text-slate-400 hover:text-rose-500 hover:scale-110'
+            }`}
+            title={isUserLoved ? 'Unlike' : 'Love'}
+          >
+            <Heart className={`w-3.5 h-3.5 ${isUserLoved ? 'fill-rose-500 text-rose-500' : ''}`} />
+          </button>
 
           {/* Action Icons */}
           <button
@@ -162,12 +173,23 @@ export const MessageItemBubble: React.FC<MessageItemBubbleProps> = ({
 
         {/* Main Message Bubble */}
         <div
-          className={`relative p-3 rounded-2xl shadow-xs transition-shadow ${
+          onDoubleClick={handleDoubleClickBubble}
+          title="Double tap to love"
+          className={`relative p-3 rounded-2xl shadow-xs transition-shadow select-none cursor-pointer ${
             isMine
               ? 'bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-br-xs'
               : 'bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-bl-xs'
           }`}
         >
+          {/* Instagram Heart Burst Animation Overlay */}
+          {showHeartBurst && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+              <div className="animate-in zoom-in-50 fade-in duration-150">
+                <Heart className="w-12 h-12 fill-rose-500 text-rose-500 drop-shadow-[0_4px_16px_rgba(244,63,94,0.6)] animate-bounce" />
+              </div>
+            </div>
+          )}
+
           {/* Quoted Message Preview (if reply) */}
           {message.replyTo && (
             <div
@@ -330,34 +352,26 @@ export const MessageItemBubble: React.FC<MessageItemBubbleProps> = ({
           </div>
         </div>
 
-        {/* Message Reactions Display (Bottom Pill) */}
-        {hasReactions && (
+        {/* Message Reaction Display (Instagram Single Love React) */}
+        {totalLoves > 0 && (
           <div
-            className={`flex flex-wrap gap-1 mt-0.5 z-10 ${
+            className={`flex mt-0.5 z-10 ${
               isMine ? 'justify-end' : 'justify-start'
             }`}
           >
-            {Object.entries(message.reactions!).map(([emoji, usersArr]) => {
-              const reactionUsers = (usersArr || []) as string[];
-              const isUserReacted = reactionUsers.includes(currentUser.name);
-
-              return (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={() => onReact(message.id, emoji)}
-                  className={`px-2 py-0.5 rounded-full text-[11px] flex items-center gap-1 border shadow-xs transition-transform active:scale-95 cursor-pointer ${
-                    isUserReacted
-                      ? 'bg-indigo-50 dark:bg-indigo-950 border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-300'
-                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
-                  }`}
-                  title={reactionUsers.join(', ')}
-                >
-                  <span>{emoji}</span>
-                  <span className="font-bold text-[10px]">{reactionUsers.length}</span>
-                </button>
-              );
-            })}
+            <button
+              type="button"
+              onClick={() => onReact(message.id, '❤️')}
+              className={`px-2 py-0.5 rounded-full text-[11px] flex items-center gap-1 border shadow-xs transition-transform active:scale-95 cursor-pointer ${
+                isUserLoved
+                  ? 'bg-rose-50 dark:bg-rose-950/70 border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 font-semibold'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
+              }`}
+              title={loveUsers.join(', ')}
+            >
+              <Heart className="w-3 h-3 fill-rose-500 text-rose-500" />
+              {totalLoves > 1 && <span className="font-bold text-[10px]">{totalLoves}</span>}
+            </button>
           </div>
         )}
       </div>

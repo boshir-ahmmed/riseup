@@ -205,14 +205,14 @@ export interface CommentReply {
   isLiked?: boolean;
 }
 
-export type ReactionType = 'like' | 'celebrate' | 'insightful' | 'love' | 'fire';
+export type ReactionType = 'love';
 
 export interface PostReactionCounts {
-  like: number;
-  celebrate: number;
-  insightful: number;
   love: number;
-  fire: number;
+  like?: number;
+  celebrate?: number;
+  insightful?: number;
+  fire?: number;
 }
 
 export interface ToastNotification {

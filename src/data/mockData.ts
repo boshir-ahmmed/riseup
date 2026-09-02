@@ -1143,7 +1143,7 @@ export const INITIAL_MESSAGES: MessageItem[] = [
     timestamp: '2025-05-13T16:20:00Z',
     status: 'read',
     reactions: {
-      '🚀': ['Sarah Chen', 'Marcus Vance']
+      '❤️': ['Sarah Chen', 'Marcus Vance']
     }
   },
   {
@@ -1198,7 +1198,7 @@ export const INITIAL_MESSAGES: MessageItem[] = [
     timestamp: '2025-05-12T16:50:00Z',
     status: 'read',
     reactions: {
-      '💡': ['Sarah Chen']
+      '❤️': ['Sarah Chen']
     }
   },
   {

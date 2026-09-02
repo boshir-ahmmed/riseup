@@ -9,7 +9,7 @@ import {
   Award,
   ShieldAlert,
   MessageSquare,
-  ThumbsUp,
+  Heart,
   Radio,
   ExternalLink
 } from 'lucide-react';
@@ -60,7 +60,7 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
       case 'mentor_declined':
         return <Award className="w-4 h-4 text-amber-500" />;
       case 'like':
-        return <ThumbsUp className="w-4 h-4 text-rose-500" />;
+        return <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />;
       case 'comment':
         return <MessageSquare className="w-4 h-4 text-blue-500" />;
       case 'system_broadcast':

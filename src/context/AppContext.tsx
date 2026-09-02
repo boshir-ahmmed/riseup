@@ -50,8 +50,8 @@ interface AppContextType {
   respondToFounderPitch: (pitchId: string, status: 'accepted' | 'declined' | 'in_discussion') => void;
   pitchFounderModalTarget: User | null;
   setPitchFounderModalTarget: (user: User | null) => void;
-  exploreTab: 'startups' | 'founders';
-  setExploreTab: (tab: 'startups' | 'founders') => void;
+  exploreTab: 'startups' | 'founders' | 'investors';
+  setExploreTab: (tab: 'startups' | 'founders' | 'investors') => void;
   categories: Category[];
   auditLogs: SystemAuditLog[];
   platformStats: typeof INITIAL_PLATFORM_STATS;
@@ -79,7 +79,7 @@ interface AppContextType {
   // Actions - Posts
   addPost: (post: Partial<Post>) => void;
   toggleLikePost: (postId: string) => void;
-  reactToPost: (postId: string, reactionType: ReactionType) => void;
+  reactToPost: (postId: string, reactionType?: ReactionType) => void;
   toggleBookmarkPost: (postId: string) => void;
   addCommentToPost: (postId: string, content: string) => void;
   addReplyToComment: (postId: string, commentId: string, content: string) => void;
@@ -154,70 +154,90 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_KEY = 'riseup_ecosystem_v2_auth_state';
 
+// Resilient localStorage helpers that prevent QuotaExceededError and syntax errors from crashing React
+function safeGetItem<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const saved = localStorage.getItem(key);
+    if (!saved) return fallback;
+    return JSON.parse(saved) as T;
+  } catch (err) {
+    console.warn(`[Storage] Failed to parse cached ${key}:`, err);
+    return fallback;
+  }
+}
+
+function safeSetItem(key: string, value: any): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (err) {
+    console.warn(`[Storage] Storage quota reached or write error for ${key}:`, err);
+    // If quota is exceeded, clear non-critical logs to free up space
+    try {
+      localStorage.removeItem(LOCAL_STORAGE_KEY + '_logs');
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch {
+      // In-memory fallback
+      return false;
+    }
+  }
+}
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Load state from localStorage or use defaults
-  const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_users');
-    return saved ? JSON.parse(saved) : INITIAL_USERS;
-  });
+  const [users, setUsers] = useState<User[]>(() =>
+    safeGetItem<User[]>(LOCAL_STORAGE_KEY + '_users', INITIAL_USERS)
+  );
 
-  const [currentUser, setCurrentUser] = useState<User>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_currUser');
-    return saved ? JSON.parse(saved) : INITIAL_USERS[1]; // Sarah Chen (Founder) by default
-  });
+  const [currentUser, setCurrentUser] = useState<User>(() =>
+    safeGetItem<User>(LOCAL_STORAGE_KEY + '_currUser', INITIAL_USERS[1])
+  );
 
-  const [startups, setStartups] = useState<Startup[]>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_startups');
-    return saved ? JSON.parse(saved) : INITIAL_STARTUPS;
-  });
+  const [startups, setStartups] = useState<Startup[]>(() =>
+    safeGetItem<Startup[]>(LOCAL_STORAGE_KEY + '_startups', INITIAL_STARTUPS)
+  );
 
-  const [posts, setPosts] = useState<Post[]>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_posts');
-    return saved ? JSON.parse(saved) : INITIAL_POSTS;
-  });
+  const [posts, setPosts] = useState<Post[]>(() =>
+    safeGetItem<Post[]>(LOCAL_STORAGE_KEY + '_posts', INITIAL_POSTS)
+  );
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_notifications');
-    return saved ? JSON.parse(saved) : INITIAL_NOTIFICATIONS;
-  });
+  const [notifications, setNotifications] = useState<NotificationItem[]>(() =>
+    safeGetItem<NotificationItem[]>(LOCAL_STORAGE_KEY + '_notifications', INITIAL_NOTIFICATIONS)
+  );
 
-  const [conversations, setConversations] = useState<Conversation[]>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_conversations');
-    return saved ? JSON.parse(saved) : INITIAL_CONVERSATIONS;
-  });
+  const [conversations, setConversations] = useState<Conversation[]>(() =>
+    safeGetItem<Conversation[]>(LOCAL_STORAGE_KEY + '_conversations', INITIAL_CONVERSATIONS)
+  );
 
-  const [messages, setMessages] = useState<MessageItem[]>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_messages');
-    return saved ? JSON.parse(saved) : INITIAL_MESSAGES;
-  });
+  const [messages, setMessages] = useState<MessageItem[]>(() =>
+    safeGetItem<MessageItem[]>(LOCAL_STORAGE_KEY + '_messages', INITIAL_MESSAGES)
+  );
 
-  const [investorRequests, setInvestorRequests] = useState<InvestorRequest[]>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_invRequests');
-    return saved ? JSON.parse(saved) : INITIAL_INVESTOR_REQUESTS;
-  });
+  const [investorRequests, setInvestorRequests] = useState<InvestorRequest[]>(() =>
+    safeGetItem<InvestorRequest[]>(LOCAL_STORAGE_KEY + '_invRequests', INITIAL_INVESTOR_REQUESTS)
+  );
 
-  const [mentorRequests, setMentorRequests] = useState<MentorRequest[]>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_menRequests');
-    return saved ? JSON.parse(saved) : INITIAL_MENTOR_REQUESTS;
-  });
+  const [mentorRequests, setMentorRequests] = useState<MentorRequest[]>(() =>
+    safeGetItem<MentorRequest[]>(LOCAL_STORAGE_KEY + '_menRequests', INITIAL_MENTOR_REQUESTS)
+  );
 
-  const [founderPitches, setFounderPitches] = useState<FounderPitch[]>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_founderPitches');
-    return saved ? JSON.parse(saved) : INITIAL_FOUNDER_PITCHES;
-  });
+  const [founderPitches, setFounderPitches] = useState<FounderPitch[]>(() =>
+    safeGetItem<FounderPitch[]>(LOCAL_STORAGE_KEY + '_founderPitches', INITIAL_FOUNDER_PITCHES)
+  );
 
   const [pitchFounderModalTarget, setPitchFounderModalTarget] = useState<User | null>(null);
-  const [exploreTab, setExploreTab] = useState<'startups' | 'founders'>('founders');
+  const [exploreTab, setExploreTab] = useState<'startups' | 'founders' | 'investors'>('founders');
 
-  const [categories, setCategories] = useState<Category[]>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_categories');
-    return saved ? JSON.parse(saved) : INITIAL_CATEGORIES;
-  });
+  const [categories, setCategories] = useState<Category[]>(() =>
+    safeGetItem<Category[]>(LOCAL_STORAGE_KEY + '_categories', INITIAL_CATEGORIES)
+  );
 
-  const [auditLogs, setAuditLogs] = useState<SystemAuditLog[]>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_logs');
-    return saved ? JSON.parse(saved) : INITIAL_AUDIT_LOGS;
-  });
+  const [auditLogs, setAuditLogs] = useState<SystemAuditLog[]>(() =>
+    safeGetItem<SystemAuditLog[]>(LOCAL_STORAGE_KEY + '_logs', INITIAL_AUDIT_LOGS)
+  );
 
   const [platformStats] = useState(INITIAL_PLATFORM_STATS);
 
@@ -240,10 +260,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [bookmarkedPostIds, setBookmarkedPostIds] = useState<string[]>(['post-1']);
 
   // Auth states & Gating: Default strictly to false so everyone must log in
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_isLoggedIn');
-    return saved !== null ? JSON.parse(saved) : false;
-  });
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() =>
+    safeGetItem<boolean>(LOCAL_STORAGE_KEY + '_isLoggedIn', false)
+  );
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
 
@@ -306,47 +325,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Persist key states
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY + '_users', JSON.stringify(users));
+    safeSetItem(LOCAL_STORAGE_KEY + '_users', users);
   }, [users]);
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY + '_currUser', JSON.stringify(currentUser));
+    safeSetItem(LOCAL_STORAGE_KEY + '_currUser', currentUser);
   }, [currentUser]);
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY + '_startups', JSON.stringify(startups));
+    safeSetItem(LOCAL_STORAGE_KEY + '_startups', startups);
   }, [startups]);
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY + '_posts', JSON.stringify(posts));
+    safeSetItem(LOCAL_STORAGE_KEY + '_posts', posts);
   }, [posts]);
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY + '_notifications', JSON.stringify(notifications));
+    safeSetItem(LOCAL_STORAGE_KEY + '_notifications', notifications);
   }, [notifications]);
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY + '_conversations', JSON.stringify(conversations));
+    safeSetItem(LOCAL_STORAGE_KEY + '_conversations', conversations);
   }, [conversations]);
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY + '_messages', JSON.stringify(messages));
+    safeSetItem(LOCAL_STORAGE_KEY + '_messages', messages);
   }, [messages]);
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY + '_invRequests', JSON.stringify(investorRequests));
+    safeSetItem(LOCAL_STORAGE_KEY + '_invRequests', investorRequests);
   }, [investorRequests]);
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY + '_menRequests', JSON.stringify(mentorRequests));
+    safeSetItem(LOCAL_STORAGE_KEY + '_menRequests', mentorRequests);
   }, [mentorRequests]);
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY + '_founderPitches', JSON.stringify(founderPitches));
+    safeSetItem(LOCAL_STORAGE_KEY + '_founderPitches', founderPitches);
   }, [founderPitches]);
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY + '_isLoggedIn', JSON.stringify(isLoggedIn));
+    safeSetItem(LOCAL_STORAGE_KEY + '_isLoggedIn', isLoggedIn);
   }, [isLoggedIn]);
 
   const toggleTheme = () => {
@@ -540,61 +559,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setNotifications(prev => [newNotif, ...prev]);
   };
 
-  const reactToPost = (postId: string, reactionType: ReactionType) => {
+  const reactToPost = (postId: string, _reactionType: ReactionType = 'love') => {
     soundManager.playReaction();
+
+    let isLikedNow = false;
 
     setPosts(prev =>
       prev.map(p => {
         if (p.id === postId) {
-          const currentReaction = p.userReaction;
-          const currentCounts = p.reactions || {
-            like: Math.max(1, p.likesCount),
-            celebrate: 0,
-            insightful: 0,
-            love: 0,
-            fire: 0
-          };
+          const currentlyLiked = !!p.isLiked || p.userReaction === 'love';
+          isLikedNow = !currentlyLiked;
 
-          if (currentReaction === reactionType) {
-            // Remove reaction
-            const newCounts = {
-              ...currentCounts,
-              [reactionType]: Math.max(0, currentCounts[reactionType] - 1)
-            };
-            const totalLikes = Object.values(newCounts).reduce((a: number, b: number) => a + b, 0);
-            return {
-              ...p,
-              userReaction: null,
-              isLiked: false,
-              likesCount: totalLikes,
-              reactions: newCounts
-            };
-          } else {
-            // Switch reaction or add new
-            const newCounts = { ...currentCounts };
-            if (currentReaction) {
-              newCounts[currentReaction] = Math.max(0, newCounts[currentReaction] - 1);
+          return {
+            ...p,
+            userReaction: isLikedNow ? 'love' : null,
+            isLiked: isLikedNow,
+            likesCount: isLikedNow ? p.likesCount + 1 : Math.max(0, p.likesCount - 1),
+            reactions: {
+              like: 0,
+              celebrate: 0,
+              insightful: 0,
+              love: isLikedNow ? p.likesCount + 1 : Math.max(0, p.likesCount - 1),
+              fire: 0
             }
-            newCounts[reactionType] = (newCounts[reactionType] || 0) + 1;
-            const totalLikes = Object.values(newCounts).reduce((a: number, b: number) => a + b, 0);
-
-            return {
-              ...p,
-              userReaction: reactionType,
-              isLiked: true,
-              likesCount: totalLikes,
-              reactions: newCounts
-            };
-          }
+          };
         }
         return p;
       })
     );
 
-    // Notify author if not self
+    // Notify author if not self and becoming liked
     const targetPost = posts.find(p => p.id === postId);
-    if (targetPost && targetPost.authorId !== currentUser.id) {
-      const emojiMap = { like: '👍', celebrate: '🚀', insightful: '💡', love: '❤️', fire: '🔥' };
+    if (targetPost && targetPost.authorId !== currentUser.id && isLikedNow) {
       const notif: NotificationItem = {
         id: `notif-${Date.now()}`,
         recipientId: targetPost.authorId,
@@ -603,8 +599,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         senderAvatar: currentUser.avatar,
         senderRole: currentUser.role,
         type: 'like',
-        title: 'New Reaction on Your Post',
-        message: `${currentUser.name} reacted with ${emojiMap[reactionType]} to "${targetPost.title || 'Startup Update'}".`,
+        title: 'New Love on Your Post',
+        message: `${currentUser.name} loved your post "${targetPost.title || 'Startup Update'}".`,
         targetId: postId,
         isRead: false,
         createdAt: new Date().toISOString()
@@ -614,12 +610,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const toggleLikePost = (postId: string) => {
-    const target = posts.find(p => p.id === postId);
-    if (target?.userReaction) {
-      reactToPost(postId, target.userReaction);
-    } else {
-      reactToPost(postId, 'like');
-    }
+    reactToPost(postId, 'love');
   };
 
   const toggleBookmarkPost = (postId: string) => {
@@ -1356,7 +1347,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
   };
 
-  const reactToMessage = (messageId: string, emoji: string) => {
+  const reactToMessage = (messageId: string, _emoji: string = '❤️') => {
+    const emoji = '❤️'; // Single love react from Instagram
     soundManager.playPop();
     setMessages(prev =>
       prev.map(m => {
@@ -1369,11 +1361,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             ? usersForEmoji.filter(name => name !== currentUser.name)
             : [...usersForEmoji, currentUser.name];
 
-          const updatedReactions = { ...currentReactions };
+          const updatedReactions: { [emoji: string]: string[] } = {};
           if (updatedUsers.length > 0) {
             updatedReactions[emoji] = updatedUsers;
-          } else {
-            delete updatedReactions[emoji];
           }
 
           return { ...m, reactions: updatedReactions };
@@ -1488,96 +1478,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setActiveConversationId(convId);
 
-    // Simulate real-time read receipt after 700ms
+    // Delivered / sent status update
     setTimeout(() => {
       setMessages(prev =>
-        prev.map(m => (m.id === newMsg.id ? { ...m, status: 'read' } : m))
+        prev.map(m => (m.id === newMsg.id ? { ...m, status: 'delivered' } : m))
       );
-    }, 700);
-
-    // Simulate real-time typing and smart context reply from other user
-    setTimeout(() => {
-      setIsTyping(true);
-      setTypingUser(recipientUser.name);
-    }, 1200);
-
-    setTimeout(() => {
-      setIsTyping(false);
-      setTypingUser(null);
-
-      // Generate intelligent contextual response
-      let replyText = '';
-      let includeMeeting: MessageItem['meetingInvite'] | undefined = undefined;
-
-      const lower = text.toLowerCase();
-      if (options?.voiceNote) {
-        replyText = `Thanks for the audio update, ${currentUser.name}! Heard you loud and clear. Let's incorporate this into our next milestone checklist.`;
-      } else if (lower.includes('pitch') || lower.includes('deck') || lower.includes('round') || lower.includes('invest') || lower.includes('mrr') || lower.includes('allocation')) {
-        if (recipientUser.role === 'investor') {
-          replyText = `Thanks for sharing this, ${currentUser.name}! The growth metrics and unit economics look very promising. I would love to review the data room and discuss our typical check terms. Are you free for a quick 15-min sync?`;
-          includeMeeting = {
-            date: 'Tomorrow',
-            time: '2:30 PM PST',
-            topic: 'Due Diligence & Syndicate Sync',
-            status: 'pending'
-          };
-        } else {
-          replyText = `Thanks for getting in touch! We are actively closing out this round and would be delighted to walk you through our product demo and traction milestones.`;
-        }
-      } else if (lower.includes('mentor') || lower.includes('advice') || lower.includes('roadmap') || lower.includes('help')) {
-        replyText = `Hello ${currentUser.name}, I reviewed your latest progress. Let's carve out time to refine the go-to-market funnel and positioning during our advisory sync.`;
-        includeMeeting = {
-          date: 'Friday',
-          time: '11:00 AM PST',
-          topic: '1-on-1 Product Advisory & Strategy',
-          status: 'pending'
-        };
-      } else {
-        const casualReplies = [
-          `Hi ${currentUser.name}, thanks for reaching out! Excited to collaborate with you inside the RiseUp ecosystem.`,
-          `Got your message! Let's stay closely connected on this. Let me know if you need any references or introductions.`,
-          `Great connecting with you! Everything looks solid on our end.`
-        ];
-        replyText = casualReplies[Math.floor(Math.random() * casualReplies.length)];
-      }
-
-      const autoReplyMsg: MessageItem = {
-        id: `msg-reply-${Date.now()}`,
-        conversationId: convId,
-        senderId: recipientUser.id,
-        senderName: recipientUser.name,
-        senderAvatar: recipientUser.avatar,
-        senderRole: recipientUser.role,
-        recipientId: currentUser.id,
-        recipientName: currentUser.name,
-        text: replyText,
-        timestamp: new Date().toISOString(),
-        status: 'read',
-        meetingInvite: includeMeeting
-      };
-
-      setMessages(prev => [...prev, autoReplyMsg]);
-
-      setConversations(prev =>
-        prev.map(c =>
-          c.id === convId
-            ? {
-                ...c,
-                lastMessage: replyText,
-                lastTimestamp: new Date().toISOString()
-              }
-            : c
-        )
-      );
-
-      soundManager.playChime();
-      showToast(
-        `Message from ${recipientUser.name}`,
-        replyText.length > 55 ? `${replyText.substring(0, 55)}...` : replyText,
-        'message',
-        recipientUser.avatar
-      );
-    }, 2800);
+    }, 600);
   };
 
   const deleteMessage = (messageId: string) => {

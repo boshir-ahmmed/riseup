@@ -4,6 +4,7 @@ import { PostCard } from '../feed/PostCard';
 import { ExpressInterestModal } from './ExpressInterestModal';
 import { MentorRequestModal } from './MentorRequestModal';
 import { PitchToInvestorModal } from './PitchToInvestorModal';
+import { compressImage } from '../../utils/imageUtils';
 import {
   DollarSign,
   TrendingUp,
@@ -73,29 +74,37 @@ export const StartupDetailsPage: React.FC = () => {
   const startupPosts = posts.filter(p => p.startupId === startup.id);
   const isFounderOrAdmin = startup.founderId === currentUser.id || currentUser.role === 'admin';
 
-  const handleLogoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onload = ev => {
-        if (ev.target?.result && typeof ev.target.result === 'string') {
-          updateStartup(startup.id, { logo: ev.target.result });
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file, {
+          maxWidth: 300,
+          maxHeight: 300,
+          quality: 0.8,
+          mimeType: 'image/jpeg'
+        });
+        updateStartup(startup.id, { logo: compressed });
+      } catch (err) {
+        console.error('Logo upload failed:', err);
+      }
     }
   };
 
-  const handleCoverFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onload = ev => {
-        if (ev.target?.result && typeof ev.target.result === 'string') {
-          updateStartup(startup.id, { coverImage: ev.target.result });
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file, {
+          maxWidth: 1400,
+          maxHeight: 600,
+          quality: 0.75,
+          mimeType: 'image/jpeg'
+        });
+        updateStartup(startup.id, { coverImage: compressed });
+      } catch (err) {
+        console.error('Cover upload failed:', err);
+      }
     }
   };
 
