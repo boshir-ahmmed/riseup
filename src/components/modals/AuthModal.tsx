@@ -162,7 +162,7 @@ export const AuthModal: React.FC = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3">
-            {authModalMode === 'signup' && (
+            {authModalMode === 'register' && (
               <div>
                 <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Full Name
@@ -206,7 +206,7 @@ export const AuthModal: React.FC = () => {
               />
             </div>
 
-            {authModalMode === 'signup' && (
+            {authModalMode === 'register' && (
               <div>
                 <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Ecosystem Role
@@ -237,7 +237,7 @@ export const AuthModal: React.FC = () => {
           <div className="pt-2 text-center">
             <button
               type="button"
-              onClick={() => setAuthModalMode(authModalMode === 'login' ? 'signup' : 'login')}
+              onClick={() => setAuthModalMode(authModalMode === 'login' ? 'register' : 'login')}
               className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
             >
               {authModalMode === 'login'

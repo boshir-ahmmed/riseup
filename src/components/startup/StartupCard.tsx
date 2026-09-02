@@ -108,7 +108,9 @@ export const StartupCard: React.FC<StartupCardProps> = ({ startup, onSelect }) =
                   {startup.name}
                 </h3>
                 {startup.isVerified && (
-                  <CheckCircle2 className="w-4 h-4 text-blue-700 dark:text-blue-400 shrink-0" title="Verified Startup" />
+                  <span title="Verified Startup">
+                    <CheckCircle2 className="w-4 h-4 text-blue-700 dark:text-blue-400 shrink-0" />
+                  </span>
                 )}
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">

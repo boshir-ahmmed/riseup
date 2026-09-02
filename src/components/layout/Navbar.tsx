@@ -13,6 +13,7 @@ import {
   Compass,
   Briefcase,
   FileCode2,
+  Database,
   LogOut,
   ChevronDown,
   LayoutDashboard,
@@ -25,10 +26,12 @@ interface NavbarProps {
   onOpenCreatePost?: () => void;
   onOpenCreateStartup?: () => void;
   onOpenArchitectureDocs?: () => void;
+  onOpenSupabaseManager?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
-  onOpenArchitectureDocs
+  onOpenArchitectureDocs,
+  onOpenSupabaseManager
 }) => {
   const {
     currentUser,
@@ -190,11 +193,22 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 id="open-architecture-docs-btn"
                 onClick={onOpenArchitectureDocs}
-                className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800/60 hover:bg-violet-100 dark:hover:bg-violet-900/60 transition"
+                className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800/60 hover:bg-violet-100 dark:hover:bg-violet-900/60 transition cursor-pointer"
                 title="View Database Schema, Architecture & ER Diagram"
               >
                 <FileCode2 className="w-3.5 h-3.5" />
                 <span>Architecture & ER</span>
+              </button>
+
+              {/* Supabase Database & Table Editor Button */}
+              <button
+                id="open-supabase-manager-btn"
+                onClick={onOpenSupabaseManager}
+                className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition cursor-pointer"
+                title="Supabase PostgreSQL Database & Table Editor"
+              >
+                <Database className="w-3.5 h-3.5" />
+                <span>Database / Tables</span>
               </button>
 
               {/* Message Box Icon Only */}
@@ -326,11 +340,21 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                       <button
                         onClick={() => setActiveView('landing')}
-                        className="w-full text-left px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg flex items-center gap-2"
+                        className="w-full text-left px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg flex items-center gap-2 cursor-pointer"
                       >
                         <HelpCircle className="w-4 h-4 text-blue-500" />
                         <span>Platform Landing & Overview</span>
                       </button>
+
+                      {onOpenSupabaseManager && (
+                        <button
+                          onClick={onOpenSupabaseManager}
+                          className="w-full text-left px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg flex items-center gap-2 cursor-pointer"
+                        >
+                          <Database className="w-4 h-4 text-emerald-500" />
+                          <span>Supabase Database & Tables</span>
+                        </button>
+                      )}
                     </div>
 
                     <div className="pt-1 border-t border-slate-100 dark:border-slate-800">

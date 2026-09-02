@@ -341,11 +341,17 @@ export const MessageItemBubble: React.FC<MessageItemBubbleProps> = ({
             {isMine && (
               <span className="flex items-center ml-0.5">
                 {message.status === 'read' ? (
-                  <CheckCheck className="w-3.5 h-3.5 text-sky-300" title="Read (Double blue check)" />
+                  <span title="Read (Double blue check)">
+                    <CheckCheck className="w-3.5 h-3.5 text-sky-300" />
+                  </span>
                 ) : message.status === 'delivered' ? (
-                  <CheckCheck className="w-3.5 h-3.5 text-indigo-300" title="Delivered" />
+                  <span title="Delivered">
+                    <CheckCheck className="w-3.5 h-3.5 text-indigo-300" />
+                  </span>
                 ) : (
-                  <Check className="w-3.5 h-3.5 text-indigo-300" title="Sent" />
+                  <span title="Sent">
+                    <Check className="w-3.5 h-3.5 text-indigo-300" />
+                  </span>
                 )}
               </span>
             )}

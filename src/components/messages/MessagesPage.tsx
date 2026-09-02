@@ -492,10 +492,14 @@ export const MessagesPage: React.FC = () => {
                         {/* Badges: Pin, Mute, Unread count */}
                         <div className="flex items-center gap-1.5 shrink-0 ml-2">
                           {conv.isMuted && (
-                            <BellOff className="w-3 h-3 text-slate-400" title="Muted" />
+                            <span title="Muted">
+                              <BellOff className="w-3 h-3 text-slate-400" />
+                            </span>
                           )}
                           {conv.isPinned && (
-                            <Pin className="w-3 h-3 text-amber-500 fill-amber-500" title="Pinned" />
+                            <span title="Pinned">
+                              <Pin className="w-3 h-3 text-amber-500 fill-amber-500" />
+                            </span>
                           )}
                           {conv.unreadCount > 0 && (
                             <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center shadow-xs">

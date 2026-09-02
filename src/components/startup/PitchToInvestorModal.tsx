@@ -37,11 +37,14 @@ export const PitchToInvestorModal: React.FC<PitchToInvestorModalProps> = ({
     e.preventDefault();
     if (!chosenInvestor || !chosenStartup) return;
 
+    const checkAmount = parseInt(fundingAsk.replace(/[^0-9]/g, ''), 10) || 250000;
+
     pitchStartupToInvestor(
       chosenStartup.id,
       chosenInvestor.id,
       customPitchNote ||
-        `Hi ${chosenInvestor.name}, we are raising ${fundingAsk} for ${chosenStartup.name} (${chosenStartup.tagline}). Would love to share our due diligence deck and sync for 15 mins.`
+        `Hi ${chosenInvestor.name}, we are raising ${fundingAsk} for ${chosenStartup.name} (${chosenStartup.tagline}). Would love to share our due diligence deck and sync for 15 mins.`,
+      checkAmount
     );
 
     setIsSent(true);

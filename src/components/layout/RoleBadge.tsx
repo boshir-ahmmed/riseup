@@ -65,10 +65,9 @@ export const RoleBadge: React.FC<RoleBadgeProps> = ({
       <Icon className={size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5'} />
       {showLabel && <span>{config.label}</span>}
       {isVerified && (
-        <CheckCircle2
-          className="w-3.5 h-3.5 text-blue-700 dark:text-blue-400 shrink-0"
-          title="Verified Profile"
-        />
+        <span title="Verified Profile">
+          <CheckCircle2 className="w-3.5 h-3.5 text-blue-700 dark:text-blue-400 shrink-0" />
+        </span>
       )}
     </div>
   );

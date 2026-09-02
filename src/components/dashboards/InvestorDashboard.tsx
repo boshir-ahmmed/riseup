@@ -36,7 +36,7 @@ export const InvestorDashboard: React.FC = () => {
 
   // Startups joined / invested by this investor
   const joinedStartups = startups.filter(
-    s => s.joinedInvestorIds?.includes(currentUser.id) || currentUser.investedStartupIds?.includes(s.id)
+    s => s.joinedInvestorIds?.includes(currentUser.id)
   );
 
   // Saved bookmarks
@@ -301,7 +301,7 @@ export const InvestorDashboard: React.FC = () => {
                             {targetStartup?.name || 'Startup'}
                           </h4>
                           <p className="text-slate-500 text-[11px]">
-                            Proposed Check: ${(req.checkSizeAmount / 1000).toFixed(0)}k USD
+                            Proposed Check: ${(req.checkSizeOffering / 1000).toFixed(0)}k USD
                           </p>
                         </div>
                       </div>

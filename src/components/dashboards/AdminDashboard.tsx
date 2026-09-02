@@ -17,8 +17,12 @@ import {
   BarChart3,
   Lock,
   Layers,
-  AlertTriangle
+  AlertTriangle,
+  Database,
+  ExternalLink
 } from 'lucide-react';
+import { SupabaseManagerModal } from '../modals/SupabaseManagerModal';
+import { isSupabaseConfigured } from '../../lib/supabase';
 
 export const AdminDashboard: React.FC = () => {
   const {
@@ -39,6 +43,7 @@ export const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'startups' | 'users' | 'rules'>('startups');
   const [startupSearch, setStartupSearch] = useState('');
   const [userSearch, setUserSearch] = useState('');
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
 
   // Aggregated Stats
   const totalFundingRaised = startups.reduce((acc, s) => acc + (s.fundingRaised || 0), 0);
@@ -107,6 +112,13 @@ export const AdminDashboard: React.FC = () => {
             }`}
           >
             Rule Audit
+          </button>
+          <button
+            onClick={() => setIsSupabaseModalOpen(true)}
+            className="px-3.5 py-2 rounded-xl transition bg-emerald-600/90 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-xs"
+          >
+            <Database className="w-3.5 h-3.5" />
+            <span>Supabase Cloud ({isSupabaseConfigured ? 'Connected' : 'Setup'})</span>
           </button>
         </div>
       </div>
@@ -351,7 +363,7 @@ export const AdminDashboard: React.FC = () => {
                       </button>
                     </td>
                     <td className="py-3 px-4 text-slate-500">
-                      {new Date(u.joinedAt).toLocaleDateString()}
+                      {new Date(u.joinedDate || new Date().toISOString()).toLocaleDateString()}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <button
@@ -432,6 +444,12 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Supabase Manager Modal */}
+      <SupabaseManagerModal
+        isOpen={isSupabaseModalOpen}
+        onClose={() => setIsSupabaseModalOpen(false)}
+      />
     </div>
   );
 };

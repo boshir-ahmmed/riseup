@@ -15,8 +15,24 @@ import {
   CommentReply,
   ReactionType,
   ToastNotification,
-  FounderPitch
+  FounderPitch,
+  Milestone
 } from '../types';
+import {
+  isSupabaseConfigured,
+  fetchUsersFromSupabase,
+  fetchStartupsFromSupabase,
+  fetchPostsFromSupabase,
+  fetchConversationsFromSupabase,
+  fetchMessagesFromSupabase,
+  fetchInvestorRequestsFromSupabase,
+  fetchMentorRequestsFromSupabase,
+  fetchFounderPitchesFromSupabase,
+  syncPostToSupabase,
+  syncStartupToSupabase,
+  syncUserToSupabase,
+  syncMessageToSupabase
+} from '../lib/supabase';
 import {
   INITIAL_USERS,
   INITIAL_STARTUPS,
@@ -125,10 +141,14 @@ interface AppContextType {
   markAllNotificationsAsRead: () => void;
   broadcastSystemNotification: (title: string, message: string) => void;
   
-  // Actions - Admin
+  // Actions - Admin & Verification
   updateUserProfile: (data: Partial<User>) => void;
   updateUserStatus: (userId: string, status: 'active' | 'pending' | 'suspended') => void;
+  updateUserRole: (userId: string, role: UserRole) => void;
+  verifyUser: (userId: string) => void;
   verifyStartup: (startupId: string) => void;
+  deleteStartup: (startupId: string) => void;
+  addMilestoneToStartup: (startupId: string, milestone: Milestone) => void;
   deleteUser: (userId: string) => void;
   addCategory: (name: string, icon: string) => void;
   deleteCategory: (id: string) => void;
@@ -367,6 +387,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     safeSetItem(LOCAL_STORAGE_KEY + '_isLoggedIn', isLoggedIn);
   }, [isLoggedIn]);
+
+  // If Supabase is connected, fetch and sync live PostgreSQL cloud database
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    const initSupabaseData = async () => {
+      try {
+        const [
+          remoteUsers,
+          remoteStartups,
+          remotePosts,
+          remoteConvs,
+          remoteMsgs,
+          remoteInvReqs,
+          remoteMenReqs,
+          remotePitches
+        ] = await Promise.all([
+          fetchUsersFromSupabase(),
+          fetchStartupsFromSupabase(),
+          fetchPostsFromSupabase(),
+          fetchConversationsFromSupabase(),
+          fetchMessagesFromSupabase(),
+          fetchInvestorRequestsFromSupabase(),
+          fetchMentorRequestsFromSupabase(),
+          fetchFounderPitchesFromSupabase()
+        ]);
+
+        if (remoteUsers && remoteUsers.length > 0) setUsers(remoteUsers);
+        if (remoteStartups && remoteStartups.length > 0) setStartups(remoteStartups);
+        if (remotePosts && remotePosts.length > 0) setPosts(remotePosts);
+        if (remoteConvs && remoteConvs.length > 0) setConversations(remoteConvs);
+        if (remoteMsgs && remoteMsgs.length > 0) setMessages(remoteMsgs);
+        if (remoteInvReqs && remoteInvReqs.length > 0) setInvestorRequests(remoteInvReqs);
+        if (remoteMenReqs && remoteMenReqs.length > 0) setMentorRequests(remoteMenReqs);
+        if (remotePitches && remotePitches.length > 0) setFounderPitches(remotePitches);
+      } catch (err) {
+        console.warn('Supabase cloud fetch notice:', err);
+      }
+    };
+    initSupabaseData();
+  }, []);
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
@@ -1045,7 +1105,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setInvestorRequests(prev => [newReq, ...prev]);
 
     // Send formatted pitch message directly in conversation thread
-    const pitchMessageText = `🚀 Direct Pitch: ${targetStartup.name} (${targetStartup.stage})\n\nRequested Allocation: $${requestedCheck.toLocaleString()}\nElevator Pitch: ${pitchSummary}\n\nKey Metrics: ${targetStartup.mrr ? `$${targetStartup.mrr.toLocaleString()} MRR` : 'Active Growth'}, ${targetStartup.growthRate || '+34% MoM'}. Pitch Deck & Financial Model attached for due diligence.`;
+    const pitchMessageText = `🚀 Direct Pitch: ${targetStartup.name} (${targetStartup.stage})\n\nRequested Allocation: $${requestedCheck.toLocaleString()}\nElevator Pitch: ${pitchSummary}\n\nKey Metrics: ${targetStartup.revenueMRR ? `$${targetStartup.revenueMRR.toLocaleString()} MRR` : 'Active Growth'}, ${targetStartup.growthRatePercent ? `+${targetStartup.growthRatePercent}% MoM` : '+34% MoM'}. Pitch Deck & Financial Model attached for due diligence.`;
 
     sendMessage(investorId, pitchMessageText, `${targetStartup.name.replace(/\s+/g, '_')}_Pitch_Deck_2026.pdf`);
 
@@ -1681,6 +1741,55 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setUsers(prev => prev.filter(u => u.id !== userId));
   };
 
+  const verifyUser = (userId: string) => {
+    setUsers(prev =>
+      prev.map(u => {
+        if (u.id === userId) {
+          const updated = { ...u, isVerified: !u.isVerified };
+          if (isSupabaseConfigured) syncUserToSupabase(updated);
+          return updated;
+        }
+        return u;
+      })
+    );
+  };
+
+  const deleteStartup = (startupId: string) => {
+    setStartups(prev => prev.filter(s => s.id !== startupId));
+    showToast('Startup Deleted', 'Startup removed from platform.', 'info');
+  };
+
+  const updateUserRole = (userId: string, role: UserRole) => {
+    setUsers(prev =>
+      prev.map(u => {
+        if (u.id === userId) {
+          const updated = { ...u, role };
+          if (isSupabaseConfigured) syncUserToSupabase(updated);
+          return updated;
+        }
+        return u;
+      })
+    );
+    showToast('User Role Updated', `Role changed to ${role}.`, 'info');
+  };
+
+  const addMilestoneToStartup = (startupId: string, milestone: Milestone) => {
+    setStartups(prev =>
+      prev.map(s => {
+        if (s.id === startupId) {
+          const updated = {
+            ...s,
+            milestones: [milestone, ...(s.milestones || [])]
+          };
+          if (isSupabaseConfigured) syncStartupToSupabase(updated);
+          return updated;
+        }
+        return s;
+      })
+    );
+    showToast('Milestone Added', 'New milestone registered for startup.', 'success');
+  };
+
   const addCategory = (name: string, icon: string) => {
     const newCat: Category = {
       id: `cat-${Date.now()}`,
@@ -1777,7 +1886,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         broadcastSystemNotification,
         updateUserProfile,
         updateUserStatus,
+        updateUserRole,
+        verifyUser,
         verifyStartup,
+        deleteStartup,
+        addMilestoneToStartup,
         deleteUser,
         addCategory,
         deleteCategory,

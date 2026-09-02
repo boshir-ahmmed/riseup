@@ -79,6 +79,7 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({
     if (!milestoneTitle.trim() || !myStartup) return;
 
     addMilestoneToStartup(myStartup.id, {
+      id: `ms-${Date.now()}`,
       title: milestoneTitle,
       description: milestoneDesc,
       date: milestoneDate,
@@ -285,11 +286,11 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({
                             {req.investorName}
                           </button>
                           <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold">
-                            Offer: ${(req.checkSizeAmount / 1000).toFixed(0)}k USD
+                            Offer: ${(req.checkSizeOffering / 1000).toFixed(0)}k USD
                           </span>
                         </div>
                         <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                          "{req.message}"
+                          "{req.note}"
                         </p>
                         <span className="text-[10px] text-slate-400 mt-1 block">
                           Submitted {new Date(req.createdAt).toLocaleDateString()}
@@ -313,14 +314,14 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({
                       {req.status === 'pending' ? (
                         <>
                           <button
-                            onClick={() => respondToInvestorRequest(req.id, 'accepted')}
+                            onClick={() => respondToInvestorRequest(req.id, true)}
                             className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs transition"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             <span>Accept</span>
                           </button>
                           <button
-                            onClick={() => respondToInvestorRequest(req.id, 'rejected')}
+                            onClick={() => respondToInvestorRequest(req.id, false)}
                             className="px-3 py-1.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-semibold transition"
                           >
                             Decline
@@ -766,14 +767,14 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({
                       {req.status === 'pending' ? (
                         <>
                           <button
-                            onClick={() => respondToMentorRequest(req.id, 'accepted')}
+                            onClick={() => respondToMentorRequest(req.id, true)}
                             className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs transition cursor-pointer"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             <span>Confirm Mentor</span>
                           </button>
                           <button
-                            onClick={() => respondToMentorRequest(req.id, 'rejected')}
+                            onClick={() => respondToMentorRequest(req.id, false)}
                             className="px-3 py-1.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-semibold transition cursor-pointer"
                           >
                             Decline

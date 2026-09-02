@@ -24,6 +24,7 @@ import { MentorRequestModal } from './components/startup/MentorRequestModal';
 import { CreateStartupModal } from './components/startup/CreateStartupModal';
 import { CreatePostModal } from './components/feed/CreatePostModal';
 import { ArchitectureDocsModal } from './components/modals/ArchitectureDocsModal';
+import { SupabaseManagerModal } from './components/modals/SupabaseManagerModal';
 import { AuthModal } from './components/modals/AuthModal';
 import { LoginPage } from './components/auth/LoginPage';
 import { ToastContainer } from './components/common/ToastContainer';
@@ -35,17 +36,15 @@ const AppContent: React.FC = () => {
     isLoggedIn,
     activeView,
     selectedStartupId,
-    interestModalStartupId,
-    setInterestModalStartupId,
-    mentorModalStartupId,
-    setMentorModalStartupId,
-    isCreateStartupOpen,
-    setIsCreateStartupOpen,
     startups
   } = useApp();
 
+  const [interestModalStartupId, setInterestModalStartupId] = useState<string | null>(null);
+  const [mentorModalStartupId, setMentorModalStartupId] = useState<string | null>(null);
+  const [isCreateStartupOpen, setIsCreateStartupOpen] = useState(false);
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [isArchDocsOpen, setIsArchDocsOpen] = useState(false);
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
 
   // If user is not logged in, enforce authentication screen. No member interface before login.
   if (!isLoggedIn) {
@@ -66,13 +65,23 @@ const AppContent: React.FC = () => {
       case 'landing':
         return <LandingPage />;
       case 'feed':
-        return <NewsFeed onOpenCreatePost={() => setIsCreatePostOpen(true)} />;
+        return (
+          <NewsFeed
+            onOpenCreatePost={() => setIsCreatePostOpen(true)}
+            onOpenCreateStartup={() => setIsCreateStartupOpen(true)}
+          />
+        );
       case 'explore':
         return <ExplorePage />;
       case 'startup-details':
         return <StartupDetailsPage />;
       case 'founder-dashboard':
-        return <FounderDashboard />;
+        return (
+          <FounderDashboard
+            onOpenCreatePost={() => setIsCreatePostOpen(true)}
+            onOpenCreateStartup={() => setIsCreateStartupOpen(true)}
+          />
+        );
       case 'investor-dashboard':
         return <InvestorDashboard />;
       case 'mentor-dashboard':
@@ -103,6 +112,7 @@ const AppContent: React.FC = () => {
         onOpenCreatePost={() => setIsCreatePostOpen(true)}
         onOpenCreateStartup={() => setIsCreateStartupOpen(true)}
         onOpenArchitectureDocs={() => setIsArchDocsOpen(true)}
+        onOpenSupabaseManager={() => setIsSupabaseModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -141,6 +151,11 @@ const AppContent: React.FC = () => {
       <ArchitectureDocsModal
         isOpen={isArchDocsOpen}
         onClose={() => setIsArchDocsOpen(false)}
+      />
+
+      <SupabaseManagerModal
+        isOpen={isSupabaseModalOpen}
+        onClose={() => setIsSupabaseModalOpen(false)}
       />
 
       <AuthModal />
