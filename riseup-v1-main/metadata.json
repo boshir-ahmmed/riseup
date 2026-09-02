@@ -1,0 +1,6 @@
+{
+  "name": "RiseUp",
+  "description": "The complete startup ecosystem connecting founders, investors, mentors, and administrators to discover, collaborate, and scale startups.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
