@@ -31,7 +31,10 @@ import {
   syncPostToSupabase,
   syncStartupToSupabase,
   syncUserToSupabase,
-  syncMessageToSupabase
+  syncMessageToSupabase,
+  syncInvestorRequestToSupabase,
+  syncMentorRequestToSupabase,
+  syncFounderPitchToSupabase
 } from '../lib/supabase';
 import {
   INITIAL_USERS,
@@ -413,7 +416,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           fetchFounderPitchesFromSupabase()
         ]);
 
-        if (remoteUsers && remoteUsers.length > 0) setUsers(remoteUsers);
+        if (remoteUsers && remoteUsers.length > 0) {
+          setUsers(prev => {
+            // Find custom users created by this client not yet in remote database
+            const customLocalUsers = prev.filter(
+              localU => !remoteUsers.some(rU => rU.id === localU.id)
+            );
+            // Automatically push any local newly created user accounts to Supabase
+            customLocalUsers.forEach(u => {
+              syncUserToSupabase(u);
+            });
+            return [...customLocalUsers, ...remoteUsers];
+          });
+        }
+
+        // Guarantee current user is synced to Supabase if they are a newly created account
+        if (currentUser && currentUser.id.startsWith('user-') && !['user-admin', 'user-founder-1', 'user-investor-1', 'user-mentor-1', 'user-founder-2', 'user-founder-3', 'user-founder-4'].includes(currentUser.id)) {
+          syncUserToSupabase(currentUser);
+        }
+
         if (remoteStartups && remoteStartups.length > 0) setStartups(remoteStartups);
         if (remotePosts && remotePosts.length > 0) setPosts(remotePosts);
         if (remoteConvs && remoteConvs.length > 0) setConversations(remoteConvs);
@@ -426,7 +447,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     };
     initSupabaseData();
-  }, []);
+  }, [currentUser]);
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
@@ -550,6 +571,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setShowAuthModal(false);
     showToast(`Account Created!`, `Welcome to RiseUp, ${name}.`, 'success');
 
+    // Live sync new user to Supabase cloud database
+    if (isSupabaseConfigured) {
+      syncUserToSupabase(newUser).then(res => {
+        if (res.success) {
+          console.log('[Supabase Cloud] User successfully synced to database:', newUser.name);
+        } else {
+          console.warn('[Supabase Cloud Sync Notice]:', res.error);
+        }
+      });
+    }
+
     if (role === 'founder') setActiveView('founder-dashboard');
     else if (role === 'investor') setActiveView('investor-dashboard');
     else if (role === 'mentor') setActiveView('mentor-dashboard');
@@ -598,6 +630,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     setPosts(prev => [newPost, ...prev]);
+    if (isSupabaseConfigured) syncPostToSupabase(newPost);
     soundManager.playSuccess();
     showToast('Post Published', `Your post has been broadcast to the ecosystem feed.`, 'info');
 
@@ -979,6 +1012,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     setStartups(prev => [newStartup, ...prev]);
+    if (isSupabaseConfigured) syncStartupToSupabase(newStartup);
 
     // Link startup to founder
     setCurrentUser(prev => ({ ...prev, startupId: newStartup.id }));
@@ -991,7 +1025,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateStartup = (startupId: string, data: Partial<Startup>) => {
     setStartups(prev =>
-      prev.map(s => (s.id === startupId ? { ...s, ...data } : s))
+      prev.map(s => {
+        if (s.id === startupId) {
+          const updated = { ...s, ...data };
+          if (isSupabaseConfigured) syncStartupToSupabase(updated);
+          return updated;
+        }
+        return s;
+      })
     );
   };
 
@@ -1036,6 +1077,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     setInvestorRequests(prev => [newRequest, ...prev]);
+    if (isSupabaseConfigured) syncInvestorRequestToSupabase(newRequest);
 
     // Update startup interested investors list
     setStartups(prev =>
@@ -1103,6 +1145,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     setInvestorRequests(prev => [newReq, ...prev]);
+    if (isSupabaseConfigured) syncInvestorRequestToSupabase(newReq);
 
     // Send formatted pitch message directly in conversation thread
     const pitchMessageText = `🚀 Direct Pitch: ${targetStartup.name} (${targetStartup.stage})\n\nRequested Allocation: $${requestedCheck.toLocaleString()}\nElevator Pitch: ${pitchSummary}\n\nKey Metrics: ${targetStartup.revenueMRR ? `$${targetStartup.revenueMRR.toLocaleString()} MRR` : 'Active Growth'}, ${targetStartup.growthRatePercent ? `+${targetStartup.growthRatePercent}% MoM` : '+34% MoM'}. Pitch Deck & Financial Model attached for due diligence.`;
@@ -1172,6 +1215,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     setMentorRequests(prev => [newReq, ...prev]);
+    if (isSupabaseConfigured) syncMentorRequestToSupabase(newReq);
 
     const notif: NotificationItem = {
       id: `notif-${Date.now()}`,
@@ -1199,7 +1243,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!req) return;
 
     setMentorRequests(prev =>
-      prev.map(r => (r.id === requestId ? { ...r, status: accept ? 'accepted' : 'declined' } : r))
+      prev.map(r => {
+        if (r.id === requestId) {
+          const updated = { ...r, status: (accept ? 'accepted' : 'declined') as any };
+          if (isSupabaseConfigured) syncMentorRequestToSupabase(updated);
+          return updated;
+        }
+        return r;
+      })
     );
 
     if (accept) {
@@ -1304,6 +1355,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     setFounderPitches(prev => [newPitch, ...prev]);
+    if (isSupabaseConfigured) syncFounderPitchToSupabase(newPitch);
 
     const pitchEmoji =
       pitchData.pitchType === 'synergy'
@@ -1499,6 +1551,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     setMessages(prev => [...prev, newMsg]);
+    if (isSupabaseConfigured) syncMessageToSupabase(newMsg);
 
     const lastPreview = text || (options?.voiceNote ? '🎤 Voice note' : options?.attachmentName ? `📎 ${options.attachmentName}` : options?.mediaUrl ? '🖼️ Photo' : 'Message');
 
@@ -1695,6 +1748,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         )
       );
     }
+
+    if (isSupabaseConfigured) syncUserToSupabase(updatedUser);
 
     soundManager.playSuccess();
     showToast('Profile Updated', 'Your profile details and uploaded media have been saved.', 'success');

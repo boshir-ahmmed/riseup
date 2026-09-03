@@ -198,69 +198,129 @@ export async function fetchFounderPitchesFromSupabase(): Promise<FounderPitch[] 
 }
 
 // ----------------------------------------------------------------------
-// WRITE / UPSERT HELPERS (Background Sync)
+// WRITE / UPSERT HELPERS (Background & Live Cloud Sync)
 // ----------------------------------------------------------------------
 
-export async function syncStartupToSupabase(startup: Startup): Promise<void> {
-  if (!supabase) return;
+function cleanRecord<T extends Record<string, any>>(record: T): T {
+  const clean: any = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (value !== undefined) {
+      clean[key] = value;
+    }
+  }
+  return clean as T;
+}
+
+export async function syncStartupToSupabase(startup: Startup): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) return { success: false, error: 'Supabase client not initialized' };
   try {
-    await supabase.from('startups').upsert(startup);
-  } catch (err) {
+    const clean = cleanRecord(startup);
+    const { error } = await supabase.from('startups').upsert(clean);
+    if (error) {
+      console.warn('[Supabase] syncStartup error:', error);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
     console.warn('[Supabase] syncStartup error:', err);
+    return { success: false, error: err.message || 'Unknown error' };
   }
 }
 
-export async function syncPostToSupabase(post: Post): Promise<void> {
-  if (!supabase) return;
+export async function syncPostToSupabase(post: Post): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) return { success: false, error: 'Supabase client not initialized' };
   try {
-    await supabase.from('posts').upsert(post);
-  } catch (err) {
+    const clean = cleanRecord(post);
+    const { error } = await supabase.from('posts').upsert(clean);
+    if (error) {
+      console.warn('[Supabase] syncPost error:', error);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
     console.warn('[Supabase] syncPost error:', err);
+    return { success: false, error: err.message || 'Unknown error' };
   }
 }
 
-export async function syncUserToSupabase(user: User): Promise<void> {
-  if (!supabase) return;
+export async function syncUserToSupabase(user: User): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) return { success: false, error: 'Supabase client not initialized' };
   try {
-    await supabase.from('users').upsert(user);
-  } catch (err) {
+    const clean = cleanRecord(user);
+    const { error } = await supabase.from('users').upsert(clean);
+    if (error) {
+      console.warn('[Supabase] syncUser error:', error);
+      return { success: false, error: error.message };
+    }
+    console.log('[Supabase] Successfully saved user to database:', user.name, user.id);
+    return { success: true };
+  } catch (err: any) {
     console.warn('[Supabase] syncUser error:', err);
+    return { success: false, error: err.message || 'Unknown error' };
   }
 }
 
-export async function syncMessageToSupabase(msg: MessageItem): Promise<void> {
-  if (!supabase) return;
+export async function syncMessageToSupabase(msg: MessageItem): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) return { success: false, error: 'Supabase client not initialized' };
   try {
-    await supabase.from('messages').upsert(msg);
-  } catch (err) {
+    const clean = cleanRecord(msg);
+    const { error } = await supabase.from('messages').upsert(clean);
+    if (error) {
+      console.warn('[Supabase] syncMessage error:', error);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
     console.warn('[Supabase] syncMessage error:', err);
+    return { success: false, error: err.message || 'Unknown error' };
   }
 }
 
-export async function syncInvestorRequestToSupabase(req: InvestorRequest): Promise<void> {
-  if (!supabase) return;
+export async function syncInvestorRequestToSupabase(req: InvestorRequest): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) return { success: false, error: 'Supabase client not initialized' };
   try {
-    await supabase.from('investor_requests').upsert(req);
-  } catch (err) {
+    const clean = cleanRecord(req);
+    const { error } = await supabase.from('investor_requests').upsert(clean);
+    if (error) {
+      console.warn('[Supabase] syncInvestorRequest error:', error);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
     console.warn('[Supabase] syncInvestorRequest error:', err);
+    return { success: false, error: err.message || 'Unknown error' };
   }
 }
 
-export async function syncMentorRequestToSupabase(req: MentorRequest): Promise<void> {
-  if (!supabase) return;
+export async function syncMentorRequestToSupabase(req: MentorRequest): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) return { success: false, error: 'Supabase client not initialized' };
   try {
-    await supabase.from('mentor_requests').upsert(req);
-  } catch (err) {
+    const clean = cleanRecord(req);
+    const { error } = await supabase.from('mentor_requests').upsert(clean);
+    if (error) {
+      console.warn('[Supabase] syncMentorRequest error:', error);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
     console.warn('[Supabase] syncMentorRequest error:', err);
+    return { success: false, error: err.message || 'Unknown error' };
   }
 }
 
-export async function syncFounderPitchToSupabase(pitch: FounderPitch): Promise<void> {
-  if (!supabase) return;
+export async function syncFounderPitchToSupabase(pitch: FounderPitch): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) return { success: false, error: 'Supabase client not initialized' };
   try {
-    await supabase.from('founder_pitches').upsert(pitch);
-  } catch (err) {
+    const clean = cleanRecord(pitch);
+    const { error } = await supabase.from('founder_pitches').upsert(clean);
+    if (error) {
+      console.warn('[Supabase] syncFounderPitch error:', error);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
     console.warn('[Supabase] syncFounderPitch error:', err);
+    return { success: false, error: err.message || 'Unknown error' };
   }
 }
 
