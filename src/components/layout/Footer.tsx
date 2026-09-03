@@ -148,7 +148,7 @@ export const Footer: React.FC = () => {
           <p>© 2025 RiseUp Startup Ecosystem. All rights reserved.</p>
           <div className="flex items-center gap-1">
             <ShieldCheck className="w-3.5 h-3.5 text-blue-700 dark:text-blue-400" />
-            <span>Zer-transaction professional networking architecture</span>
+            <span>Zero-transaction professional networking architecture</span>
           </div>
         </div>
       </div>
