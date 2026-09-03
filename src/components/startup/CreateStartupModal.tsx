@@ -81,6 +81,7 @@ export const CreateStartupModal: React.FC<CreateStartupModalProps> = ({
       logo,
       coverImage,
       pitchDeckName: pitchDeckName || 'Investor_Pitch_Deck_2025.pdf',
+      pitchDeckUrl: pitchDeckUrl || undefined,
       problem:
         problem ||
         `${name} addresses acute operational friction and lack of modern automated tools in the ${industry} space.`,
@@ -290,6 +291,7 @@ export const CreateStartupModal: React.FC<CreateStartupModalProps> = ({
                 onChange={setLogo}
                 aspectRatio="logo"
                 presets={sampleLogos}
+                folder="startups"
                 required
               />
 
@@ -301,6 +303,7 @@ export const CreateStartupModal: React.FC<CreateStartupModalProps> = ({
                 onChange={setCoverImage}
                 aspectRatio="banner"
                 presets={sampleCovers}
+                folder="covers"
               />
             </div>
           )}
@@ -369,6 +372,7 @@ export const CreateStartupModal: React.FC<CreateStartupModalProps> = ({
                 fileName={pitchDeckName}
                 fileSize={pitchDeckSize}
                 fileUrl={pitchDeckUrl}
+                folder="documents"
                 onChange={file => {
                   setPitchDeckName(file.name);
                   setPitchDeckSize(file.size);

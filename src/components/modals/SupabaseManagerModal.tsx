@@ -16,14 +16,17 @@ import {
   Globe,
   ArrowRight,
   ShieldCheck,
-  Download
+  Download,
+  Cloud
 } from 'lucide-react';
 import {
   isSupabaseConfigured,
   testSupabaseConnection,
+  testSupabaseStorageConnection,
   seedAllDemoDataToSupabase,
   supabaseUrl,
-  supabaseAnonKey
+  supabaseAnonKey,
+  SUPABASE_STORAGE_BUCKET
 } from '../../lib/supabase';
 import fullSqlScript from '../../../supabase_schema_and_seed.sql?raw';
 
@@ -40,6 +43,7 @@ export const SupabaseManagerModal: React.FC<SupabaseManagerModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [storageTestResult, setStorageTestResult] = useState<{ success: boolean; message: string; bucketExists?: boolean } | null>(null);
 
   const [seeding, setSeeding] = useState(false);
   const [seedProgress, setSeedProgress] = useState<string>('');
@@ -86,9 +90,14 @@ export const SupabaseManagerModal: React.FC<SupabaseManagerModalProps> = ({
   const handleTestConnection = async () => {
     setTesting(true);
     setTestResult(null);
-    const result = await testSupabaseConnection();
+    setStorageTestResult(null);
+    const [dbResult, storageResult] = await Promise.all([
+      testSupabaseConnection(),
+      testSupabaseStorageConnection()
+    ]);
     setTesting(false);
-    setTestResult(result);
+    setTestResult(dbResult);
+    setStorageTestResult(storageResult);
   };
 
   const handleSeedFromClient = async () => {
@@ -400,8 +409,28 @@ export const SupabaseManagerModal: React.FC<SupabaseManagerModalProps> = ({
                       <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                     )}
                     <div className="space-y-1">
-                      <p className="font-bold">{testResult.success ? 'Connected!' : 'Connection Note'}</p>
+                      <p className="font-bold">{testResult.success ? 'PostgreSQL Database Connected!' : 'Database Connection Note'}</p>
                       <p>{testResult.message}</p>
+                    </div>
+                  </div>
+                )}
+
+                {storageTestResult && (
+                  <div
+                    className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 ${
+                      storageTestResult.success
+                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400'
+                    }`}
+                  >
+                    {storageTestResult.success ? (
+                      <Cloud className="w-4 h-4 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    )}
+                    <div className="space-y-1">
+                      <p className="font-bold">{storageTestResult.success ? 'Supabase Storage Ready!' : 'Supabase Storage Setup Note'}</p>
+                      <p>{storageTestResult.message}</p>
                     </div>
                   </div>
                 )}

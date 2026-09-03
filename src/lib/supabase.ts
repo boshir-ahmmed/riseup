@@ -88,6 +88,144 @@ export async function testSupabaseConnection(): Promise<{ success: boolean; mess
 }
 
 // ----------------------------------------------------------------------
+// SUPABASE STORAGE SERVICES (Avatars, Covers, Startups, Posts, Documents)
+// ----------------------------------------------------------------------
+
+export const SUPABASE_STORAGE_BUCKET = 'riseup-media';
+
+/**
+ * Tests access to the Supabase Storage bucket
+ */
+export async function testSupabaseStorageConnection(): Promise<{ success: boolean; message: string; bucketExists?: boolean }> {
+  if (!supabase) {
+    return { success: false, message: 'Supabase client is not initialized.' };
+  }
+  try {
+    const { data: buckets, error } = await supabase.storage.listBuckets();
+    if (error) {
+      return {
+        success: false,
+        message: `Storage error: ${error.message}. Run the SQL storage script to create and enable the '${SUPABASE_STORAGE_BUCKET}' bucket.`,
+        bucketExists: false
+      };
+    }
+    const found = buckets?.some(b => b.name === SUPABASE_STORAGE_BUCKET);
+    if (found) {
+      return {
+        success: true,
+        message: `Storage bucket '${SUPABASE_STORAGE_BUCKET}' is active and ready for media uploads!`,
+        bucketExists: true
+      };
+    }
+    // Attempt automated creation if allowed by client policy
+    try {
+      const { error: createErr } = await supabase.storage.createBucket(SUPABASE_STORAGE_BUCKET, {
+        public: true,
+        fileSizeLimit: 52428800 // 50MB
+      });
+      if (!createErr) {
+        return {
+          success: true,
+          message: `Storage bucket '${SUPABASE_STORAGE_BUCKET}' was automatically created and is ready!`,
+          bucketExists: true
+        };
+      }
+    } catch {}
+
+    return {
+      success: false,
+      message: `Bucket '${SUPABASE_STORAGE_BUCKET}' not found. Run the provided SQL script in your Supabase SQL Editor to initialize it.`,
+      bucketExists: false
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err?.message || 'Failed to connect to Supabase Storage.',
+      bucketExists: false
+    };
+  }
+}
+
+/**
+ * Uploads any File or Blob directly to Supabase Storage and returns its public HTTPS URL.
+ */
+export async function uploadFileToSupabaseStorage(
+  file: File | Blob,
+  folder: 'avatars' | 'covers' | 'startups' | 'posts' | 'documents' | 'chat' = 'avatars',
+  customFileName?: string
+): Promise<{ success: boolean; url: string; error?: string }> {
+  if (!supabase) {
+    return { success: false, url: '', error: 'Supabase client not initialized' };
+  }
+
+  try {
+    const originalName = customFileName || (file instanceof File ? file.name : 'upload.jpg');
+    const ext = originalName.split('.').pop()?.toLowerCase() || 'jpg';
+    const cleanBaseName = originalName.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substring(2, 7);
+    const filePath = `${folder}/${timestamp}_${randomSuffix}_${cleanBaseName}.${ext}`;
+
+    const mimeType = (file as any).type || (ext === 'pdf' ? 'application/pdf' : ext === 'png' ? 'image/png' : 'image/jpeg');
+
+    const { data, error } = await supabase.storage
+      .from(SUPABASE_STORAGE_BUCKET)
+      .upload(filePath, file, {
+        cacheControl: '31536000',
+        upsert: true,
+        contentType: mimeType
+      });
+
+    if (error) {
+      console.warn('[Supabase Storage] Upload error:', error);
+      return { success: false, url: '', error: error.message };
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from(SUPABASE_STORAGE_BUCKET)
+      .getPublicUrl(filePath);
+
+    if (!publicUrlData?.publicUrl) {
+      return { success: false, url: '', error: 'Failed to retrieve public URL from Supabase Storage' };
+    }
+
+    console.log('[Supabase Storage] Successfully uploaded to:', publicUrlData.publicUrl);
+    return { success: true, url: publicUrlData.publicUrl };
+  } catch (err: any) {
+    console.warn('[Supabase Storage] Exception:', err);
+    return { success: false, url: '', error: err.message || 'Storage upload error' };
+  }
+}
+
+/**
+ * Converts a Base64 data URL into a Blob and uploads it directly to Supabase Storage,
+ * replacing local Base64 strings with permanent Supabase public URLs.
+ */
+export async function uploadBase64ToSupabaseStorage(
+  dataUrl: string,
+  folder: 'avatars' | 'covers' | 'startups' | 'posts' | 'documents' | 'chat' = 'avatars',
+  filename: string = 'media.jpg'
+): Promise<{ success: boolean; url: string; error?: string }> {
+  if (!dataUrl || !dataUrl.startsWith('data:')) {
+    // If it's already an HTTP URL (Unsplash or Supabase), return it as-is
+    return { success: true, url: dataUrl };
+  }
+
+  if (!supabase) {
+    return { success: false, url: dataUrl, error: 'Supabase client not initialized' };
+  }
+
+  try {
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    return await uploadFileToSupabaseStorage(blob, folder, filename);
+  } catch (err: any) {
+    console.warn('[Supabase Storage] Base64 conversion/upload error:', err);
+    return { success: false, url: dataUrl, error: err.message || 'Conversion error' };
+  }
+}
+
+// ----------------------------------------------------------------------
 // READ HELPERS
 // ----------------------------------------------------------------------
 

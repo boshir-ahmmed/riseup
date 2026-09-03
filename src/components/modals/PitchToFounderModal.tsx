@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { User, FounderPitchType } from '../../types';
+import { uploadFileToSupabaseStorage, isSupabaseConfigured } from '../../lib/supabase';
 import {
   X,
   Sparkles,
@@ -22,7 +23,9 @@ import {
   Plus,
   Trash2,
   Flame,
-  ArrowRight
+  ArrowRight,
+  Loader2,
+  Cloud
 } from 'lucide-react';
 
 interface PitchToFounderModalProps {
@@ -68,6 +71,7 @@ export const PitchToFounderModal: React.FC<PitchToFounderModalProps> = ({
   const [deckUrl, setDeckUrl] = useState<string>(senderStartup?.pitchDeckUrl || '');
   const [deckSize, setDeckSize] = useState<string>('3.8 MB');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingDeck, setIsUploadingDeck] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -191,18 +195,35 @@ export const PitchToFounderModal: React.FC<PitchToFounderModalProps> = ({
     setSynergyPoints(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setDeckName(file.name);
-      setDeckSize(`${(file.size / (1024 * 1024)).toFixed(1)} MB`);
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setDeckUrl(reader.result);
+      const sizeStr = `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+      setDeckSize(sizeStr);
+      setIsUploadingDeck(true);
+
+      try {
+        if (isSupabaseConfigured) {
+          const uploadRes = await uploadFileToSupabaseStorage(file, 'documents', file.name);
+          if (uploadRes.success && uploadRes.url) {
+            setDeckUrl(uploadRes.url);
+            return;
+          }
         }
-      };
-      reader.readAsDataURL(file);
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            setDeckUrl(reader.result);
+          }
+        };
+        reader.readAsDataURL(file);
+      } catch (err) {
+        console.error('Error uploading deck to Supabase:', err);
+      } finally {
+        setIsUploadingDeck(false);
+      }
     }
   };
 
@@ -507,14 +528,26 @@ export const PitchToFounderModal: React.FC<PitchToFounderModalProps> = ({
             <div className="p-3.5 rounded-xl border border-dashed border-indigo-300 dark:border-indigo-800/80 bg-indigo-50/40 dark:bg-indigo-950/20 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-lg bg-indigo-600/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                  <FileText className="w-5 h-5" />
+                  {isUploadingDeck ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+                  ) : (
+                    <FileText className="w-5 h-5" />
+                  )}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                    {deckName}
-                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                      {deckName}
+                    </p>
+                    {deckUrl?.includes('supabase.co/storage') && (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        <Cloud className="w-2.5 h-2.5" />
+                        <span>Supabase</span>
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    PDF Document • {deckSize} • Secure Cloud Room
+                    {isUploadingDeck ? 'Uploading to Supabase Storage...' : `Document • ${deckSize} • Secure Cloud Storage`}
                   </p>
                 </div>
               </div>
@@ -529,11 +562,21 @@ export const PitchToFounderModal: React.FC<PitchToFounderModalProps> = ({
                 />
                 <button
                   type="button"
+                  disabled={isUploadingDeck}
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800/60 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition flex items-center gap-1.5"
+                  className="px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800/60 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                 >
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>Replace Deck</span>
+                  {isUploadingDeck ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Uploading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{deckUrl ? 'Replace Deck' : 'Upload Deck'}</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>

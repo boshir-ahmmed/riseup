@@ -5,6 +5,7 @@ import { PostCard } from '../feed/PostCard';
 import { EditProfileModal } from './EditProfileModal';
 import { PitchToFounderModal } from '../modals/PitchToFounderModal';
 import { compressImage } from '../../utils/imageUtils';
+import { uploadFileToSupabaseStorage, isSupabaseConfigured } from '../../lib/supabase';
 import {
   MapPin,
   Building2,
@@ -31,7 +32,9 @@ import {
   Paperclip,
   ExternalLink,
   Plus,
-  Zap
+  Zap,
+  Loader2,
+  Cloud
 } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
@@ -52,6 +55,9 @@ export const ProfilePage: React.FC = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'posts' | 'documents'>('overview');
 
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
@@ -68,6 +74,8 @@ export const ProfilePage: React.FC = () => {
   const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      setIsUploadingMedia(true);
+      setUploadMessage('Uploading avatar to Supabase Storage...');
       try {
         const compressed = await compressImage(file, {
           maxWidth: 400,
@@ -75,9 +83,22 @@ export const ProfilePage: React.FC = () => {
           quality: 0.8,
           mimeType: 'image/jpeg'
         });
+
+        if (isSupabaseConfigured) {
+          const res = await fetch(compressed);
+          const blob = await res.blob();
+          const uploadRes = await uploadFileToSupabaseStorage(blob, 'avatars', file.name);
+          if (uploadRes.success && uploadRes.url) {
+            updateUserProfile({ avatar: uploadRes.url });
+            return;
+          }
+        }
         updateUserProfile({ avatar: compressed });
       } catch (err) {
         console.error('Avatar upload failed:', err);
+      } finally {
+        setIsUploadingMedia(false);
+        setUploadMessage(null);
       }
     }
   };
@@ -85,6 +106,8 @@ export const ProfilePage: React.FC = () => {
   const handleCoverFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      setIsUploadingMedia(true);
+      setUploadMessage('Uploading cover to Supabase Storage...');
       try {
         const compressed = await compressImage(file, {
           maxWidth: 1400,
@@ -92,14 +115,27 @@ export const ProfilePage: React.FC = () => {
           quality: 0.75,
           mimeType: 'image/jpeg'
         });
+
+        if (isSupabaseConfigured) {
+          const res = await fetch(compressed);
+          const blob = await res.blob();
+          const uploadRes = await uploadFileToSupabaseStorage(blob, 'covers', file.name);
+          if (uploadRes.success && uploadRes.url) {
+            updateUserProfile({ coverImage: uploadRes.url });
+            return;
+          }
+        }
         updateUserProfile({ coverImage: compressed });
       } catch (err) {
         console.error('Cover upload failed:', err);
+      } finally {
+        setIsUploadingMedia(false);
+        setUploadMessage(null);
       }
     }
   };
 
-  const handleDocFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDocFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const formatSize = (bytes: number) => {
@@ -107,17 +143,38 @@ export const ProfilePage: React.FC = () => {
         return (bytes / 1048576).toFixed(1) + ' MB';
       };
 
-      const reader = new FileReader();
-      reader.onload = ev => {
-        if (ev.target?.result && typeof ev.target.result === 'string') {
-          updateUserProfile({
-            resumeUrl: ev.target.result,
-            resumeName: file.name,
-            resumeSize: formatSize(file.size)
-          });
+      setIsUploadingMedia(true);
+      setUploadMessage('Uploading resume to Supabase Storage...');
+      try {
+        if (isSupabaseConfigured) {
+          const uploadRes = await uploadFileToSupabaseStorage(file, 'documents', file.name);
+          if (uploadRes.success && uploadRes.url) {
+            updateUserProfile({
+              resumeUrl: uploadRes.url,
+              resumeName: file.name,
+              resumeSize: formatSize(file.size)
+            });
+            return;
+          }
         }
-      };
-      reader.readAsDataURL(file);
+
+        const reader = new FileReader();
+        reader.onload = ev => {
+          if (ev.target?.result && typeof ev.target.result === 'string') {
+            updateUserProfile({
+              resumeUrl: ev.target.result,
+              resumeName: file.name,
+              resumeSize: formatSize(file.size)
+            });
+          }
+        };
+        reader.readAsDataURL(file);
+      } catch (err) {
+        console.error('Doc upload failed:', err);
+      } finally {
+        setIsUploadingMedia(false);
+        setUploadMessage(null);
+      }
     }
   };
 
@@ -152,6 +209,17 @@ export const ProfilePage: React.FC = () => {
             className="hidden"
           />
         </>
+      )}
+
+      {/* Floating Upload Notification */}
+      {isUploadingMedia && (
+        <div className="fixed bottom-6 right-6 z-50 px-4 py-3 bg-slate-950/90 text-white rounded-2xl shadow-2xl border border-indigo-500/50 flex items-center gap-3 backdrop-blur-md animate-in slide-in-from-bottom-5">
+          <Loader2 className="w-5 h-5 text-indigo-400 animate-spin shrink-0" />
+          <div>
+            <p className="text-xs font-bold">{uploadMessage || 'Uploading file...'}</p>
+            <p className="text-[11px] text-slate-400">Saving directly to Supabase Storage</p>
+          </div>
+        </div>
       )}
 
       {/* Header Profile Card */}
@@ -189,6 +257,15 @@ export const ProfilePage: React.FC = () => {
                 alt={profileUser.name}
                 className="w-28 h-28 sm:w-34 sm:h-34 rounded-3xl object-cover border-4 border-white dark:border-slate-900 shadow-xl bg-white dark:bg-slate-800"
               />
+
+              {profileUser.avatar?.includes('supabase.co/storage') && (
+                <div
+                  className="absolute -top-1.5 -right-1.5 p-1 bg-emerald-500 text-white rounded-full shadow-md border-2 border-white dark:border-slate-900"
+                  title="Photo hosted on Supabase Cloud Storage"
+                >
+                  <Cloud className="w-3.5 h-3.5" />
+                </div>
+              )}
 
               {isOwnProfile && (
                 <button

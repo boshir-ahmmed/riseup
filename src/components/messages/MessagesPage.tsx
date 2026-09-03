@@ -29,7 +29,10 @@ import {
   Download,
   Flame,
   ArrowDown,
-  User as UserIcon
+  User as UserIcon,
+  UploadCloud,
+  Loader2,
+  Cloud
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Conversation, MessageItem, User, UserRole } from '../../types';
@@ -37,6 +40,8 @@ import { RoleBadge } from '../layout/RoleBadge';
 import { MessageItemBubble } from './MessageItemBubble';
 import { ChatContactInfoDrawer } from './ChatContactInfoDrawer';
 import { NewChatModal } from './NewChatModal';
+import { uploadFileToSupabaseStorage, isSupabaseConfigured } from '../../lib/supabase';
+import { compressImage } from '../../utils/imageUtils';
 
 const EMOJI_LIST = [
   '😀', '😂', '😊', '😍', '🤔', '😎', '🙌', '👍',
@@ -99,6 +104,11 @@ export const MessagesPage: React.FC = () => {
 
   // Media Lightbox Modal
   const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
+
+  // Supabase storage uploading state
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageContainerRef = useRef<HTMLDivElement>(null);
@@ -254,6 +264,107 @@ export const MessagesPage: React.FC = () => {
         mediaType: 'image'
       }
     );
+  };
+
+  // Upload photo from device directly to Supabase Storage
+  const handleRealPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!activeConversation || !e.target.files || !e.target.files[0]) return;
+    const file = e.target.files[0];
+    setShowAttachMenu(false);
+    setIsUploadingAttachment(true);
+
+    try {
+      const compressed = await compressImage(file, {
+        maxWidth: 1200,
+        maxHeight: 1200,
+        quality: 0.82,
+        mimeType: 'image/jpeg'
+      });
+
+      let finalUrl = compressed;
+      if (isSupabaseConfigured) {
+        const res = await fetch(compressed);
+        const blob = await res.blob();
+        const uploadRes = await uploadFileToSupabaseStorage(blob, 'chat', file.name);
+        if (uploadRes.success && uploadRes.url) {
+          finalUrl = uploadRes.url;
+        }
+      }
+
+      sendMessage(
+        activeConversation.otherUser.id,
+        '',
+        undefined,
+        {
+          mediaUrl: finalUrl,
+          mediaType: 'image'
+        }
+      );
+    } catch (err) {
+      console.error('Error uploading message photo:', err);
+    } finally {
+      setIsUploadingAttachment(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
+
+  // Upload document from device directly to Supabase Storage
+  const handleRealDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!activeConversation || !e.target.files || !e.target.files[0]) return;
+    const file = e.target.files[0];
+    setShowAttachMenu(false);
+    setIsUploadingAttachment(true);
+
+    const formatSize = (bytes: number) => {
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1048576).toFixed(1) + ' MB';
+    };
+    const sizeStr = formatSize(file.size);
+
+    try {
+      let finalUrl = '';
+      if (isSupabaseConfigured) {
+        const uploadRes = await uploadFileToSupabaseStorage(file, 'documents', file.name);
+        if (uploadRes.success && uploadRes.url) {
+          finalUrl = uploadRes.url;
+        }
+      }
+
+      if (!finalUrl) {
+        // Fallback to data URL
+        const reader = new FileReader();
+        reader.onload = ev => {
+          if (ev.target?.result && typeof ev.target.result === 'string') {
+            sendMessage(
+              activeConversation.otherUser.id,
+              '',
+              file.name,
+              {
+                attachmentName: file.name,
+                attachmentSize: sizeStr
+              }
+            );
+          }
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      sendMessage(
+        activeConversation.otherUser.id,
+        '',
+        file.name,
+        {
+          attachmentName: file.name,
+          attachmentSize: sizeStr
+        }
+      );
+    } catch (err) {
+      console.error('Error uploading message document:', err);
+    } finally {
+      setIsUploadingAttachment(false);
+      if (docInputRef.current) docInputRef.current.value = '';
+    }
   };
 
   // Send document attachment
@@ -893,35 +1004,87 @@ export const MessagesPage: React.FC = () => {
               </div>
             )}
 
+            {/* Hidden file inputs for real device uploads */}
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleRealPhotoUpload}
+              className="hidden"
+            />
+            <input
+              ref={docInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx,.ppt,.pptx,.txt"
+              onChange={handleRealDocUpload}
+              className="hidden"
+            />
+
             {/* Attachment Menu Popup */}
             {showAttachMenu && (
               <div
                 id="attachment-menu-popover"
-                className="absolute bottom-16 left-12 z-30 p-2 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 shadow-xl rounded-2xl w-56 flex flex-col gap-1 text-xs animate-in zoom-in-95 duration-150"
+                className="absolute bottom-16 left-12 z-30 p-2 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 shadow-xl rounded-2xl w-64 flex flex-col gap-1 text-xs animate-in zoom-in-95 duration-150"
               >
+                {/* Real Device Uploads */}
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 transition cursor-pointer text-left"
+                >
+                  <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shrink-0">
+                    <UploadCloud className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold flex items-center gap-1">
+                      <span>Upload Photo</span>
+                      <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold">Cloud</span>
+                    </p>
+                    <p className="text-[10px] text-slate-400 truncate">Select JPG/PNG from device</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => docInputRef.current?.click()}
+                  className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 transition cursor-pointer text-left"
+                >
+                  <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold flex items-center gap-1">
+                      <span>Upload Document / Deck</span>
+                      <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold">Cloud</span>
+                    </p>
+                    <p className="text-[10px] text-slate-400 truncate">PDF, DOCX, PPTX (Supabase)</p>
+                  </div>
+                </button>
+
+                <div className="h-px bg-slate-100 dark:bg-slate-800 my-0.5" />
+
+                {/* Preset quick attachments */}
                 <button
                   type="button"
                   onClick={() => handleSendPhoto()}
-                  className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 transition cursor-pointer"
+                  className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition cursor-pointer"
                 >
-                  <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
-                    <ImageIcon className="w-4 h-4" />
-                  </div>
-                  <span className="font-semibold">Photo / Screenshot</span>
+                  <ImageIcon className="w-3.5 h-3.5 text-indigo-500" />
+                  <span className="text-[11px]">Send Sample Screenshot</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() =>
-                    handleSendDocument('NeuroPulse_Series_A_DataRoom.pdf', '3.8 MB')
+                    handleSendDocument('RiseUp_Executive_Summary.pdf', '2.4 MB')
                   }
-                  className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 transition cursor-pointer"
+                  className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition cursor-pointer"
                 >
-                  <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <span className="font-semibold">Pitch Deck (PDF)</span>
+                  <FileText className="w-3.5 h-3.5 text-amber-500" />
+                  <span className="text-[11px]">Send Sample One-Pager</span>
                 </button>
+
+                <div className="h-px bg-slate-100 dark:bg-slate-800 my-0.5" />
 
                 <button
                   type="button"
@@ -929,13 +1092,21 @@ export const MessagesPage: React.FC = () => {
                     setShowAttachMenu(false);
                     setShowScheduleModal(true);
                   }}
-                  className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 transition cursor-pointer"
+                  className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 transition cursor-pointer"
                 >
                   <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                     <Calendar className="w-4 h-4" />
                   </div>
                   <span className="font-semibold">Schedule Meeting</span>
                 </button>
+              </div>
+            )}
+
+            {/* Uploading indicator */}
+            {isUploadingAttachment && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 rounded-xl text-xs mb-2 animate-in fade-in">
+                <Loader2 className="w-4 h-4 animate-spin text-indigo-600 dark:text-indigo-400" />
+                <span>Uploading attachment to Supabase Storage...</span>
               </div>
             )}
 

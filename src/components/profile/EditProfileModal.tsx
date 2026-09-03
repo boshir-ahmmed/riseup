@@ -304,6 +304,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                 onChange={setAvatar}
                 aspectRatio="avatar"
                 presets={sampleAvatars}
+                folder="avatars"
                 required
               />
 
@@ -315,6 +316,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                 onChange={setCoverImage}
                 aspectRatio="banner"
                 presets={sampleCovers}
+                folder="covers"
               />
             </div>
           )}
@@ -425,6 +427,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                 fileName={resumeName}
                 fileSize={resumeSize}
                 fileUrl={resumeUrl}
+                folder="documents"
                 onChange={file => {
                   setResumeName(file.name);
                   setResumeSize(file.size);

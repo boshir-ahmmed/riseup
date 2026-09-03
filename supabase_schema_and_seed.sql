@@ -279,7 +279,55 @@ CREATE POLICY "Public full access on mentor_requests" ON public.mentor_requests 
 DROP POLICY IF EXISTS "Public full access on founder_pitches" ON public.founder_pitches;
 CREATE POLICY "Public full access on founder_pitches" ON public.founder_pitches FOR ALL USING (true) WITH CHECK (true);
 
--- 3. Demo Data Seed
+-- 3. Supabase Storage Setup (riseup-media bucket)
+-- ------------------------------------------------------------------------------
+-- Creates the public storage bucket for avatars, covers, startups, posts, pitch decks & documents
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'riseup-media',
+  'riseup-media',
+  true,
+  52428800, -- 50MB file size limit
+  ARRAY[
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    'image/svg+xml',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain'
+  ]
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = true,
+  file_size_limit = 52428800;
+
+-- Storage Row Level Security (RLS) Policies
+DROP POLICY IF EXISTS "Public read access to riseup-media" ON storage.objects;
+CREATE POLICY "Public read access to riseup-media"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'riseup-media');
+
+DROP POLICY IF EXISTS "Public upload access to riseup-media" ON storage.objects;
+CREATE POLICY "Public upload access to riseup-media"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'riseup-media');
+
+DROP POLICY IF EXISTS "Public update access to riseup-media" ON storage.objects;
+CREATE POLICY "Public update access to riseup-media"
+ON storage.objects FOR UPDATE
+USING (bucket_id = 'riseup-media');
+
+DROP POLICY IF EXISTS "Public delete access to riseup-media" ON storage.objects;
+CREATE POLICY "Public delete access to riseup-media"
+ON storage.objects FOR DELETE
+USING (bucket_id = 'riseup-media');
+
+-- 4. Demo Data Seed
 -- ------------------------------------------------------------------------------
 
 -- Seed Users

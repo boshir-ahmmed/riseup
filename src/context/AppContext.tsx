@@ -974,6 +974,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       revenueMRR: startupData.revenueMRR || 15000,
       growthRatePercent: startupData.growthRatePercent || 20,
       pitchDeckName: startupData.pitchDeckName || 'Pitch_Deck_2025.pdf',
+      pitchDeckUrl: startupData.pitchDeckUrl,
       gallery: startupData.gallery || [
         'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800&auto=format&fit=crop&q=80'
       ],

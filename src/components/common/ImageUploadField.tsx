@@ -7,16 +7,20 @@ import {
   CheckCircle2,
   RefreshCw,
   Sparkles,
-  Eye
+  Eye,
+  Loader2,
+  Cloud
 } from 'lucide-react';
 import { compressImage } from '../../utils/imageUtils';
+import { uploadFileToSupabaseStorage, isSupabaseConfigured } from '../../lib/supabase';
 
 interface ImageUploadFieldProps {
   label: string;
   sublabel?: string;
   value?: string;
-  onChange: (dataUrl: string) => void;
+  onChange: (url: string) => void;
   aspectRatio?: 'avatar' | 'banner' | 'logo' | 'media';
+  folder?: 'avatars' | 'covers' | 'startups' | 'posts' | 'documents' | 'chat';
   presets?: string[];
   required?: boolean;
   className?: string;
@@ -28,6 +32,7 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
   value,
   onChange,
   aspectRatio = 'avatar',
+  folder,
   presets = [],
   required = false,
   className = ''
@@ -36,7 +41,15 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [showPresets, setShowPresets] = useState(false);
   const [previewError, setPreviewError] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [fileMeta, setFileMeta] = useState<{ name: string; size: string } | null>(null);
+
+  const targetFolder = folder || (
+    aspectRatio === 'avatar' ? 'avatars' :
+    aspectRatio === 'banner' ? 'covers' :
+    aspectRatio === 'logo' ? 'startups' : 'posts'
+  );
 
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return bytes + ' B';
@@ -50,9 +63,8 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
       return;
     }
 
-    // Limit check (e.g. 15MB)
-    if (file.size > 15 * 1024 * 1024) {
-      alert('Image file size should be less than 15MB.');
+    if (file.size > 20 * 1024 * 1024) {
+      alert('Image file size should be less than 20MB.');
       return;
     }
 
@@ -61,21 +73,41 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
       size: formatFileSize(file.size)
     });
     setPreviewError(false);
+    setIsUploading(true);
+    setUploadStatus('Optimizing image...');
 
     try {
-      const maxWidth = aspectRatio === 'banner' ? 1280 : aspectRatio === 'avatar' || aspectRatio === 'logo' ? 400 : 960;
-      const maxHeight = aspectRatio === 'banner' ? 640 : aspectRatio === 'avatar' || aspectRatio === 'logo' ? 400 : 720;
+      const maxWidth = aspectRatio === 'banner' ? 1400 : aspectRatio === 'avatar' || aspectRatio === 'logo' ? 400 : 1080;
+      const maxHeight = aspectRatio === 'banner' ? 600 : aspectRatio === 'avatar' || aspectRatio === 'logo' ? 400 : 800;
 
-      const compressedUrl = await compressImage(file, {
+      const compressedDataUrl = await compressImage(file, {
         maxWidth,
         maxHeight,
-        quality: 0.75,
+        quality: 0.82,
         mimeType: 'image/jpeg'
       });
-      onChange(compressedUrl);
+
+      // Upload directly to Supabase Storage if configured
+      if (isSupabaseConfigured) {
+        setUploadStatus('Uploading to Supabase Storage...');
+        const res = await fetch(compressedDataUrl);
+        const blob = await res.blob();
+
+        const uploadRes = await uploadFileToSupabaseStorage(blob, targetFolder, file.name);
+        if (uploadRes.success && uploadRes.url) {
+          onChange(uploadRes.url);
+          setIsUploading(false);
+          setUploadStatus(null);
+          return;
+        } else {
+          console.warn('[Supabase Storage] Fallback to compressed data URL:', uploadRes.error);
+        }
+      }
+
+      // Local fallback if Supabase Storage is not yet provisioned
+      onChange(compressedDataUrl);
     } catch (err) {
-      console.error('Failed to compress image:', err);
-      // Fallback
+      console.error('Failed to process/upload image:', err);
       const reader = new FileReader();
       reader.onload = (e) => {
         if (e.target?.result && typeof e.target.result === 'string') {
@@ -83,6 +115,9 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
         }
       };
       reader.readAsDataURL(file);
+    } finally {
+      setIsUploading(false);
+      setUploadStatus(null);
     }
   };
 
@@ -185,7 +220,17 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
       )}
 
       {/* Upload Zone / Preview */}
-      {value && !previewError ? (
+      {isUploading ? (
+        <div className="p-6 rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/30 flex flex-col items-center justify-center text-center animate-pulse">
+          <Loader2 className="w-8 h-8 text-indigo-600 dark:text-indigo-400 animate-spin mb-2" />
+          <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+            {uploadStatus || 'Uploading to Supabase Storage...'}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            Streaming file directly to cloud bucket...
+          </p>
+        </div>
+      ) : value && !previewError ? (
         <div className="relative group rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-900/5 dark:bg-slate-900/40 p-2">
           {/* Avatar layout */}
           {aspectRatio === 'avatar' && (
@@ -199,9 +244,17 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Profile Photo Loaded</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Profile Photo Loaded</span>
+                  </div>
+                  {value?.includes('supabase.co/storage') && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      <Cloud className="w-2.5 h-2.5" />
+                      <span>Supabase Cloud</span>
+                    </span>
+                  )}
                 </div>
                 {fileMeta && (
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">

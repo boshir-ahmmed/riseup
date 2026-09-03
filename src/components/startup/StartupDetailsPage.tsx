@@ -5,6 +5,7 @@ import { ExpressInterestModal } from './ExpressInterestModal';
 import { MentorRequestModal } from './MentorRequestModal';
 import { PitchToInvestorModal } from './PitchToInvestorModal';
 import { compressImage } from '../../utils/imageUtils';
+import { uploadFileToSupabaseStorage, isSupabaseConfigured } from '../../lib/supabase';
 import {
   DollarSign,
   TrendingUp,
@@ -35,7 +36,9 @@ import {
   User as UserIcon,
   Camera,
   UploadCloud,
-  Edit3
+  Edit3,
+  Loader2,
+  Cloud
 } from 'lucide-react';
 
 export const StartupDetailsPage: React.FC = () => {
@@ -63,6 +66,8 @@ export const StartupDetailsPage: React.FC = () => {
   const [isMentorOpen, setIsMentorOpen] = useState(false);
   const [isPitchOpen, setIsPitchOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -77,16 +82,31 @@ export const StartupDetailsPage: React.FC = () => {
   const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      setIsUploadingMedia(true);
+      setUploadMessage('Uploading startup logo to Supabase Storage...');
       try {
         const compressed = await compressImage(file, {
-          maxWidth: 300,
-          maxHeight: 300,
-          quality: 0.8,
+          maxWidth: 400,
+          maxHeight: 400,
+          quality: 0.82,
           mimeType: 'image/jpeg'
         });
+
+        if (isSupabaseConfigured) {
+          const res = await fetch(compressed);
+          const blob = await res.blob();
+          const uploadRes = await uploadFileToSupabaseStorage(blob, 'startups', file.name);
+          if (uploadRes.success && uploadRes.url) {
+            updateStartup(startup.id, { logo: uploadRes.url });
+            return;
+          }
+        }
         updateStartup(startup.id, { logo: compressed });
       } catch (err) {
         console.error('Logo upload failed:', err);
+      } finally {
+        setIsUploadingMedia(false);
+        setUploadMessage(null);
       }
     }
   };
@@ -94,33 +114,68 @@ export const StartupDetailsPage: React.FC = () => {
   const handleCoverFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      setIsUploadingMedia(true);
+      setUploadMessage('Uploading startup banner to Supabase Storage...');
       try {
         const compressed = await compressImage(file, {
           maxWidth: 1400,
           maxHeight: 600,
-          quality: 0.75,
+          quality: 0.78,
           mimeType: 'image/jpeg'
         });
+
+        if (isSupabaseConfigured) {
+          const res = await fetch(compressed);
+          const blob = await res.blob();
+          const uploadRes = await uploadFileToSupabaseStorage(blob, 'covers', file.name);
+          if (uploadRes.success && uploadRes.url) {
+            updateStartup(startup.id, { coverImage: uploadRes.url });
+            return;
+          }
+        }
         updateStartup(startup.id, { coverImage: compressed });
       } catch (err) {
         console.error('Cover upload failed:', err);
+      } finally {
+        setIsUploadingMedia(false);
+        setUploadMessage(null);
       }
     }
   };
 
-  const handleDeckFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDeckFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onload = ev => {
-        if (ev.target?.result && typeof ev.target.result === 'string') {
-          updateStartup(startup.id, {
-            pitchDeckName: file.name,
-            pitchDeckUrl: ev.target.result
-          });
+      setIsUploadingMedia(true);
+      setUploadMessage('Uploading pitch deck to Supabase Storage...');
+      try {
+        if (isSupabaseConfigured) {
+          const uploadRes = await uploadFileToSupabaseStorage(file, 'documents', file.name);
+          if (uploadRes.success && uploadRes.url) {
+            updateStartup(startup.id, {
+              pitchDeckName: file.name,
+              pitchDeckUrl: uploadRes.url
+            });
+            return;
+          }
         }
-      };
-      reader.readAsDataURL(file);
+
+        const reader = new FileReader();
+        reader.onload = ev => {
+          if (ev.target?.result && typeof ev.target.result === 'string') {
+            updateStartup(startup.id, {
+              pitchDeckName: file.name,
+              pitchDeckUrl: ev.target.result
+            });
+          }
+        };
+        reader.readAsDataURL(file);
+      } catch (err) {
+        console.error('Pitch deck upload failed:', err);
+      } finally {
+        setIsUploadingMedia(false);
+        setUploadMessage(null);
+      }
     }
   };
 
@@ -193,6 +248,17 @@ export const StartupDetailsPage: React.FC = () => {
         className="hidden"
       />
 
+      {/* Floating Upload Notification */}
+      {isUploadingMedia && (
+        <div className="fixed bottom-6 right-6 z-50 px-4 py-3 bg-slate-950/90 text-white rounded-2xl shadow-2xl border border-indigo-500/50 flex items-center gap-3 backdrop-blur-md animate-in slide-in-from-bottom-5">
+          <Loader2 className="w-5 h-5 text-indigo-400 animate-spin shrink-0" />
+          <div>
+            <p className="text-xs font-bold">{uploadMessage || 'Uploading file...'}</p>
+            <p className="text-[11px] text-slate-400">Streaming directly to Supabase Storage</p>
+          </div>
+        </div>
+      )}
+
       {/* Hero Header Card */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
         {/* Cover Photo */}
@@ -246,6 +312,14 @@ export const StartupDetailsPage: React.FC = () => {
                   alt={startup.name}
                   className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-4 border-white dark:border-slate-900 shadow-xl bg-white dark:bg-slate-800"
                 />
+                {startup.logo?.includes('supabase.co/storage') && (
+                  <div
+                    className="absolute -top-1.5 -right-1.5 p-1 bg-emerald-500 text-white rounded-full shadow-md border-2 border-white dark:border-slate-900"
+                    title="Logo hosted on Supabase Cloud Storage"
+                  >
+                    <Cloud className="w-3.5 h-3.5" />
+                  </div>
+                )}
                 {isFounderOrAdmin && (
                   <button
                     type="button"

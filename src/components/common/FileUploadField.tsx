@@ -10,8 +10,11 @@ import {
   Paperclip,
   Trash2,
   FileCode,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Loader2,
+  Cloud
 } from 'lucide-react';
+import { uploadFileToSupabaseStorage, isSupabaseConfigured } from '../../lib/supabase';
 
 interface FileUploadFieldProps {
   label: string;
@@ -19,6 +22,7 @@ interface FileUploadFieldProps {
   fileName?: string;
   fileSize?: string;
   fileUrl?: string;
+  folder?: 'documents' | 'startups' | 'posts' | 'avatars' | 'covers' | 'chat';
   onChange: (fileData: { name: string; size: string; url: string; type: string }) => void;
   onRemove?: () => void;
   accept?: string;
@@ -31,6 +35,7 @@ export const FileUploadField: React.FC<FileUploadFieldProps> = ({
   fileName,
   fileSize,
   fileUrl,
+  folder = 'documents',
   onChange,
   onRemove,
   accept = '.pdf,.doc,.docx,.ppt,.pptx,.txt,.zip,.csv,.xlsx',
@@ -38,6 +43,8 @@ export const FileUploadField: React.FC<FileUploadFieldProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return bytes + ' B';
@@ -54,24 +61,52 @@ export const FileUploadField: React.FC<FileUploadFieldProps> = ({
     return <File className="w-6 h-6 text-indigo-500" />;
   };
 
-  const handleFileSelect = (file: File) => {
-    if (file.size > 25 * 1024 * 1024) {
-      alert('File size exceeds the 25MB limit.');
+  const handleFileSelect = async (file: File) => {
+    if (file.size > 50 * 1024 * 1024) {
+      alert('File size exceeds the 50MB limit.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (e.target?.result && typeof e.target.result === 'string') {
-        onChange({
-          name: file.name,
-          size: formatFileSize(file.size),
-          url: e.target.result,
-          type: file.type || file.name.split('.').pop() || 'document'
-        });
+    setIsUploading(true);
+    setUploadStatus('Streaming to Supabase Storage...');
+
+    try {
+      if (isSupabaseConfigured) {
+        const uploadRes = await uploadFileToSupabaseStorage(file, folder, file.name);
+        if (uploadRes.success && uploadRes.url) {
+          onChange({
+            name: file.name,
+            size: formatFileSize(file.size),
+            url: uploadRes.url,
+            type: file.type || file.name.split('.').pop() || 'document'
+          });
+          setIsUploading(false);
+          setUploadStatus(null);
+          return;
+        } else {
+          console.warn('[Supabase Storage] Fallback to reader:', uploadRes.error);
+        }
       }
-    };
-    reader.readAsDataURL(file);
+
+      // Local fallback
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target?.result && typeof e.target.result === 'string') {
+          onChange({
+            name: file.name,
+            size: formatFileSize(file.size),
+            url: e.target.result,
+            type: file.type || file.name.split('.').pop() || 'document'
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('File upload exception:', err);
+    } finally {
+      setIsUploading(false);
+      setUploadStatus(null);
+    }
   };
 
   const onDragOver = (e: React.DragEvent) => {
@@ -128,7 +163,17 @@ export const FileUploadField: React.FC<FileUploadFieldProps> = ({
         className="hidden"
       />
 
-      {fileUrl && fileName ? (
+      {isUploading ? (
+        <div className="p-6 rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/30 flex flex-col items-center justify-center text-center animate-pulse">
+          <Loader2 className="w-8 h-8 text-indigo-600 dark:text-indigo-400 animate-spin mb-2" />
+          <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+            {uploadStatus || 'Uploading document to Supabase Storage...'}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            Storing file securely in the cloud bucket...
+          </p>
+        </div>
+      ) : fileUrl && fileName ? (
         <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/90 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-11 h-11 rounded-xl bg-white dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600 flex items-center justify-center shrink-0">
@@ -138,12 +183,17 @@ export const FileUploadField: React.FC<FileUploadFieldProps> = ({
               <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
                 {fileName}
               </p>
-              <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex-wrap">
                 <span>{fileSize || 'Uploaded file'}</span>
                 <span>•</span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" /> Ready
                 </span>
+                {fileUrl?.includes('supabase.co/storage') && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    <Cloud className="w-2.5 h-2.5" /> Supabase Storage
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -151,9 +201,11 @@ export const FileUploadField: React.FC<FileUploadFieldProps> = ({
           <div className="flex items-center gap-2 shrink-0 ml-3">
             <a
               href={fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               download={fileName}
               className="p-2 text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 rounded-xl transition"
-              title="Download File"
+              title="Download / Open File"
             >
               <Download className="w-4 h-4" />
             </a>

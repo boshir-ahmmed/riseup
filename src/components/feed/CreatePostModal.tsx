@@ -184,6 +184,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ isOpen, onClos
             onChange={setMediaUrl}
             aspectRatio="media"
             presets={presetImages}
+            folder="posts"
           />
 
           {/* Tags */}
