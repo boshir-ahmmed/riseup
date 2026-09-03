@@ -123,6 +123,7 @@ interface AppContextType {
   reactToMessage: (messageId: string, emoji: string) => void;
   respondToMeetingInvite: (messageId: string, status: 'confirmed' | 'declined') => void;
   deleteMessage: (messageId: string) => void;
+  deleteConversation: (convId: string) => void;
   toggleStarMessage: (messageId: string) => void;
   togglePinConversation: (convId: string) => void;
   toggleMuteConversation: (convId: string) => void;
@@ -231,13 +232,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     safeGetItem<NotificationItem[]>(LOCAL_STORAGE_KEY + '_notifications', INITIAL_NOTIFICATIONS)
   );
 
-  const [conversations, setConversations] = useState<Conversation[]>(() =>
-    safeGetItem<Conversation[]>(LOCAL_STORAGE_KEY + '_conversations', INITIAL_CONVERSATIONS)
-  );
+  const DEMO_CONV_IDS = ['conv-1', 'conv-2', 'conv-3', 'conv-4'];
+  const DEMO_MSG_IDS = ['msg-1', 'msg-2', 'msg-3', 'msg-201', 'msg-202', 'msg-203', 'msg-301'];
 
-  const [messages, setMessages] = useState<MessageItem[]>(() =>
-    safeGetItem<MessageItem[]>(LOCAL_STORAGE_KEY + '_messages', INITIAL_MESSAGES)
-  );
+  const [conversations, setConversations] = useState<Conversation[]>(() => {
+    const raw = safeGetItem<Conversation[]>(LOCAL_STORAGE_KEY + '_conversations', INITIAL_CONVERSATIONS);
+    return (raw || []).filter(c => !DEMO_CONV_IDS.includes(c.id));
+  });
+
+  const [messages, setMessages] = useState<MessageItem[]>(() => {
+    const raw = safeGetItem<MessageItem[]>(LOCAL_STORAGE_KEY + '_messages', INITIAL_MESSAGES);
+    return (raw || []).filter(m => !DEMO_MSG_IDS.includes(m.id) && !DEMO_CONV_IDS.includes(m.conversationId));
+  });
 
   const [investorRequests, setInvestorRequests] = useState<InvestorRequest[]>(() =>
     safeGetItem<InvestorRequest[]>(LOCAL_STORAGE_KEY + '_invRequests', INITIAL_INVESTOR_REQUESTS)
@@ -338,7 +344,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const startCallWithUser = (user: User) => {
     setActiveCallUser(user);
     soundManager.playPop();
-    showToast(`Calling ${user.name}...`, 'Live encrypted peer audio connection initiated.', 'message', user.avatar);
+    showToast(`Calling ${user.name}...`, 'Live audio connection initiated.', 'message', user.avatar);
   };
 
   const endCall = () => {
@@ -437,8 +443,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         if (remoteStartups && remoteStartups.length > 0) setStartups(remoteStartups);
         if (remotePosts && remotePosts.length > 0) setPosts(remotePosts);
-        if (remoteConvs && remoteConvs.length > 0) setConversations(remoteConvs);
-        if (remoteMsgs && remoteMsgs.length > 0) setMessages(remoteMsgs);
+        if (remoteConvs && remoteConvs.length > 0) {
+          const filteredConvs = remoteConvs.filter(c => !DEMO_CONV_IDS.includes(c.id));
+          setConversations(filteredConvs);
+        }
+        if (remoteMsgs && remoteMsgs.length > 0) {
+          const filteredMsgs = remoteMsgs.filter(
+            m => !DEMO_MSG_IDS.includes(m.id) && !DEMO_CONV_IDS.includes(m.conversationId)
+          );
+          setMessages(filteredMsgs);
+        }
         if (remoteInvReqs && remoteInvReqs.length > 0) setInvestorRequests(remoteInvReqs);
         if (remoteMenReqs && remoteMenReqs.length > 0) setMentorRequests(remoteMenReqs);
         if (remotePitches && remotePitches.length > 0) setFounderPitches(remotePitches);
@@ -1606,6 +1620,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast('Message Deleted', 'Removed from conversation history.', 'info');
   };
 
+  const deleteConversation = (convId: string) => {
+    soundManager.playPop();
+    setConversations(prev => prev.filter(c => c.id !== convId));
+    setMessages(prev => prev.filter(m => m.conversationId !== convId));
+    if (activeConversationId === convId) {
+      setActiveConversationId(null);
+    }
+    showToast('Conversation Deleted', 'Chat history removed.', 'info');
+  };
+
   const toggleStarMessage = (messageId: string) => {
     soundManager.playPop();
     setMessages(prev =>
@@ -1924,6 +1948,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         reactToMessage,
         respondToMeetingInvite,
         deleteMessage,
+        deleteConversation,
         toggleStarMessage,
         togglePinConversation,
         toggleMuteConversation,

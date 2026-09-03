@@ -32,6 +32,8 @@ export interface User {
   github?: string;
   isVerified: boolean;
   status: 'active' | 'pending' | 'suspended';
+  isOnline?: boolean;
+  lastSeen?: string;
   joinedDate: string;
   profileCompletion: number;
   achievements: string[];

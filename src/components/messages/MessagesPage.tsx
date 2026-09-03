@@ -22,7 +22,6 @@ import {
   FileText,
   Calendar,
   Sparkles,
-  ShieldCheck,
   Info,
   Check,
   CheckCheck,
@@ -61,6 +60,7 @@ export const MessagesPage: React.FC = () => {
     reactToMessage,
     respondToMeetingInvite,
     deleteMessage,
+    deleteConversation,
     toggleStarMessage,
     togglePinConversation,
     toggleMuteConversation,
@@ -109,6 +109,7 @@ export const MessagesPage: React.FC = () => {
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
+  const messageInputRef = useRef<HTMLInputElement>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageContainerRef = useRef<HTMLDivElement>(null);
@@ -646,19 +647,38 @@ export const MessagesPage: React.FC = () => {
                     >
                       {conv.isMuted ? <Bell className="w-3.5 h-3.5" /> : <BellOff className="w-3.5 h-3.5" />}
                     </button>
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        deleteConversation(conv.id);
+                      }}
+                      className="p-1 rounded-md text-slate-400 hover:text-rose-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                      title="Delete chat"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               );
             })
           ) : (
-            <div className="p-8 text-center text-slate-400 text-xs">
-              <p>No conversations found.</p>
+            <div className="p-6 text-center text-slate-500 dark:text-slate-400 text-xs space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 mx-auto flex items-center justify-center">
+                <SquarePen className="w-5 h-5" />
+              </div>
+              <p className="font-semibold text-slate-800 dark:text-slate-200">
+                {searchQuery ? 'No matching chats found.' : 'No conversations yet'}
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Directly connect and message with founders, investors, or mentors.
+              </p>
               <button
                 type="button"
                 onClick={() => setShowNewChatModal(true)}
-                className="mt-3 text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
+                className="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition cursor-pointer shadow-xs"
               >
-                Start a new chat
+                + New Chat
               </button>
             </div>
           )}
@@ -764,7 +784,7 @@ export const MessagesPage: React.FC = () => {
                   } as User)
                 }
                 className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                title="Start Encrypted Audio Call"
+                title="Audio Call"
               >
                 <Phone className="w-4 h-4" />
               </button>
@@ -811,6 +831,15 @@ export const MessagesPage: React.FC = () => {
                 title="Contact Info & Shared Media"
               >
                 <Info className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => deleteConversation(activeConversation.id)}
+                className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                title="Delete Chat"
+              >
+                <Trash2 className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -880,13 +909,44 @@ export const MessagesPage: React.FC = () => {
               backgroundSize: '24px 24px'
             }}
           >
-            {/* End to end encryption badge banner */}
-            <div className="flex justify-center my-2">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-semibold">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>End-to-End Encrypted Ecosystem Connection</span>
+            {/* If no messages yet in this conversation, show a clean welcoming starter with quick icebreakers */}
+            {activeMessages.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+                <img
+                  src={activeConversation.otherUser.avatar}
+                  alt={activeConversation.otherUser.name}
+                  referrerPolicy="no-referrer"
+                  className="w-16 h-16 rounded-full object-cover ring-4 ring-indigo-500/20 mb-3 shadow-sm"
+                />
+                <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                  {activeConversation.otherUser.name}
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mb-4">
+                  {activeConversation.otherUser.title || activeConversation.otherUser.company || 'Member of RiseUp Ecosystem'}
+                </p>
+                <div className="w-full max-w-sm space-y-2">
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Quick icebreakers</p>
+                  {[
+                    '👋 Hi! Excited to connect with you on RiseUp.',
+                    '💼 I would love to learn more about your work.',
+                    '📅 Free for a quick 15-minute intro sync this week?'
+                  ].map((icebreaker, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        setInputText(icebreaker);
+                        messageInputRef.current?.focus();
+                      }}
+                      className="w-full text-left p-2.5 rounded-xl bg-white dark:bg-slate-850 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-slate-200 dark:border-slate-750 text-xs text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 transition cursor-pointer flex items-center justify-between group shadow-2xs"
+                    >
+                      <span>{icebreaker}</span>
+                      <Send className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-indigo-600 transition shrink-0 ml-2" />
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Render grouped message bubbles */}
             {activeMessages.map((msg, index) => {
@@ -1190,6 +1250,7 @@ export const MessagesPage: React.FC = () => {
                 {/* Text input */}
                 <div className="flex-1 relative">
                   <input
+                    ref={messageInputRef}
                     type="text"
                     placeholder="Type a message..."
                     value={inputText}
@@ -1222,13 +1283,13 @@ export const MessagesPage: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="flex-1 hidden md:flex flex-col items-center justify-center p-8 text-center bg-slate-50/50 dark:bg-slate-950/50">
+        <div className="flex-1 hidden md:flex flex-col items-center justify-center p-8 text-center bg-slate-50/50 dark:bg-slate-950/50 overflow-y-auto">
           <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-4 shadow-xs">
             <SquarePen className="w-8 h-8" />
           </div>
           <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-1">RiseUp Ecosystem Messages</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
-            Select a conversation on the left or initiate a new peer-to-peer sync with any founder, investor, or mentor.
+            Select a conversation on the left or connect instantly with founders, investors, or mentors below.
           </p>
           <button
             type="button"
@@ -1237,6 +1298,49 @@ export const MessagesPage: React.FC = () => {
           >
             Start New Conversation
           </button>
+
+          {/* Quick Connect Directory */}
+          <div className="mt-8 w-full max-w-xl">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+              Quick Connect with Members
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left">
+              {users
+                .filter(u => u.id !== currentUser.id)
+                .slice(0, 6)
+                .map(u => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => startConversationWithUser(u)}
+                    className="p-3 rounded-xl bg-white dark:bg-slate-900 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/40 border border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700/50 transition cursor-pointer flex items-center gap-3 shadow-2xs group"
+                  >
+                    <div className="relative shrink-0">
+                      <img
+                        src={u.avatar}
+                        alt={u.name}
+                        referrerPolicy="no-referrer"
+                        className="w-10 h-10 rounded-full object-cover ring-2 ring-transparent group-hover:ring-indigo-500/40 transition"
+                      />
+                      {u.isOnline && (
+                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">
+                          {u.name}
+                        </span>
+                        <RoleBadge role={u.role} size="sm" />
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                        {u.title || u.company || u.role}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+            </div>
+          </div>
         </div>
       )}
 

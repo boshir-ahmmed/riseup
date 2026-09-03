@@ -483,13 +483,17 @@ export async function seedAllDemoDataToSupabase(onProgress?: (msg: string) => vo
     const { error: errPosts } = await supabase.from('posts').upsert(INITIAL_POSTS);
     if (errPosts) throw new Error(`Posts seed failed: ${errPosts.message}`);
 
-    onProgress?.('Uploading conversations...');
-    const { error: errConvs } = await supabase.from('conversations').upsert(INITIAL_CONVERSATIONS);
-    if (errConvs) throw new Error(`Conversations seed failed: ${errConvs.message}`);
+    if (INITIAL_CONVERSATIONS.length > 0) {
+      onProgress?.('Uploading conversations...');
+      const { error: errConvs } = await supabase.from('conversations').upsert(INITIAL_CONVERSATIONS);
+      if (errConvs) throw new Error(`Conversations seed failed: ${errConvs.message}`);
+    }
 
-    onProgress?.('Uploading chat messages...');
-    const { error: errMsgs } = await supabase.from('messages').upsert(INITIAL_MESSAGES);
-    if (errMsgs) throw new Error(`Messages seed failed: ${errMsgs.message}`);
+    if (INITIAL_MESSAGES.length > 0) {
+      onProgress?.('Uploading chat messages...');
+      const { error: errMsgs } = await supabase.from('messages').upsert(INITIAL_MESSAGES);
+      if (errMsgs) throw new Error(`Messages seed failed: ${errMsgs.message}`);
+    }
 
     onProgress?.('Uploading investor requests...');
     const { error: errInv } = await supabase.from('investor_requests').upsert(INITIAL_INVESTOR_REQUESTS);

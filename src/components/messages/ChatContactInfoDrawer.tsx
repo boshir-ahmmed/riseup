@@ -10,7 +10,6 @@ import {
   FileText,
   Image as ImageIcon,
   ExternalLink,
-  ShieldCheck,
   Building2,
   Mail,
   UserCheck,
@@ -330,12 +329,6 @@ export const ChatContactInfoDrawer: React.FC<ChatContactInfoDrawerProps> = ({
             )}
           </div>
         )}
-      </div>
-
-      {/* Encryption Footer Note */}
-      <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-        <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-        <span>End-to-end encrypted ecosystem communication channel.</span>
       </div>
     </div>
   );
