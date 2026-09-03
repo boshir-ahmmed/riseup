@@ -31,14 +31,7 @@ export const QuickRoleSwitcher: React.FC = () => {
       icon: Award,
       color: 'hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400'
     },
-    {
-      role: 'admin',
-      name: 'Alexander Mercer',
-      title: 'Platform Admin',
-      desc: 'Ecosystem analytics, user moderation, post approvals, broadcast alerts',
-      icon: ShieldCheck,
-      color: 'hover:border-rose-500 hover:text-rose-600 dark:hover:text-rose-400'
-    }
+    
   ];
 
   return (
