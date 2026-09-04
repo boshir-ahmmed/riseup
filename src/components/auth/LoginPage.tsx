@@ -149,7 +149,7 @@ export const LoginPage: React.FC = () => {
               </div>
 
               <h1 className="text-4xl xl:text-5xl font-black tracking-tight text-slate-900 dark:text-white leading-tight">
-                Connecting <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600">Startups</span> with Opportunities.
+                Connectingg <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600">Startups</span> with Opportunities.
               </h1>
 
               <p className="text-sm xl:text-base text-slate-600 dark:text-slate-300 leading-relaxed max-w-lg">
