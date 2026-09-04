@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Search,
   Send,
@@ -53,6 +53,7 @@ export const MessagesPage: React.FC = () => {
     reactToMessage,
     deleteMessage,
     deleteConversation,
+    markConversationAsRead,
     toggleStarMessage,
     togglePinConversation,
     toggleMuteConversation,
@@ -94,25 +95,88 @@ export const MessagesPage: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageContainerRef = useRef<HTMLDivElement>(null);
 
+  // Filter conversations private to currentUser and compute counter-party profile
+  const myConversations = useMemo(() => {
+    return conversations
+      .filter(c => {
+        // Current user must be a participant in the conversation
+        const isParticipant = c.participantA === currentUser.id || c.participantB === currentUser.id;
+        if (!isParticipant) return false;
+        // Skip if deleted by current user ("Delete chat for me")
+        if (c.deletedFor && c.deletedFor.includes(currentUser.id)) return false;
+        return true;
+      })
+      .map(c => {
+        // Resolve the counterpart relative to the current user
+        const otherUserId = c.participantA === currentUser.id ? c.participantB : c.participantA;
+        const matchedUser = users.find(u => u.id === otherUserId);
+        const otherUser = matchedUser
+          ? {
+              id: matchedUser.id,
+              name: matchedUser.name,
+              avatar: matchedUser.avatar,
+              role: matchedUser.role,
+              title: matchedUser.title || 'Member',
+              company: matchedUser.company || 'RiseUp Ecosystem',
+              isOnline: true,
+              lastSeen: 'Active now'
+            }
+          : c.otherUser;
+
+        const isPinned = Boolean(c.pinnedBy ? c.pinnedBy.includes(currentUser.id) : c.isPinned);
+        const isMuted = Boolean(c.mutedBy ? c.mutedBy.includes(currentUser.id) : c.isMuted);
+        const unreadCount = c.unreadBy ? (c.unreadBy[currentUser.id] ?? 0) : c.unreadCount;
+
+        return {
+          ...c,
+          otherUser,
+          isPinned,
+          isMuted,
+          unreadCount
+        };
+      });
+  }, [conversations, currentUser.id, users]);
+
+  // Active conversation object scoped to current user's chats
+  const activeConversation = useMemo(() => {
+    if (!activeConversationId) return myConversations[0] || null;
+    return myConversations.find(c => c.id === activeConversationId) || myConversations[0] || null;
+  }, [myConversations, activeConversationId]);
+
+  // Auto-select valid conversation for current user
+  useEffect(() => {
+    if (myConversations.length > 0) {
+      if (!activeConversationId || !myConversations.some(c => c.id === activeConversationId)) {
+        setActiveConversationId(myConversations[0].id);
+      }
+    } else {
+      if (activeConversationId) {
+        setActiveConversationId(null);
+      }
+    }
+  }, [myConversations, activeConversationId, setActiveConversationId]);
+
+  // Mark active conversation as read
+  useEffect(() => {
+    if (activeConversation && activeConversation.unreadCount > 0) {
+      markConversationAsRead(activeConversation.id);
+    }
+  }, [activeConversation?.id, activeConversation?.unreadCount, markConversationAsRead]);
+
+  // Active thread messages (excluding messages deleted for current user)
+  const activeMessages = useMemo(() => {
+    if (!activeConversation) return [];
+    return messages.filter(
+      m =>
+        m.conversationId === activeConversation.id &&
+        !(m.deletedFor && m.deletedFor.includes(currentUser.id))
+    );
+  }, [messages, activeConversation?.id, currentUser.id]);
+
   // Auto-scroll to bottom of chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, activeConversationId, isTyping]);
-
-  // Active conversation object
-  const activeConversation = conversations.find(c => c.id === activeConversationId) || conversations[0];
-
-  // Set default active conversation if none is selected
-  useEffect(() => {
-    if (!activeConversationId && conversations.length > 0) {
-      setActiveConversationId(conversations[0].id);
-    }
-  }, [activeConversationId, conversations, setActiveConversationId]);
-
-  // Active thread messages
-  const activeMessages = messages.filter(
-    m => m.conversationId === (activeConversation ? activeConversation.id : '')
-  );
+  }, [activeMessages.length, activeConversation?.id, isTyping]);
 
   // In-chat search matched message IDs
   const matchedMessageIds = inChatSearchTerm.trim()
@@ -146,30 +210,32 @@ export const MessagesPage: React.FC = () => {
     }
   };
 
-  // Filtered conversation list
-  const filteredConversations = conversations
-    .filter(c => {
-      // Filter by chip
-      if (activeFilter === 'unread' && c.unreadCount === 0) return false;
-      if (activeFilter === 'pinned' && !c.isPinned) return false;
-      if (['founder', 'investor', 'mentor', 'admin'].includes(activeFilter) && c.otherUser.role !== activeFilter) {
-        return false;
-      }
-      // Filter by search query
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase();
-      return (
-        c.otherUser.name.toLowerCase().includes(q) ||
-        (c.otherUser.company && c.otherUser.company.toLowerCase().includes(q)) ||
-        c.lastMessage.toLowerCase().includes(q)
-      );
-    })
-    .sort((a, b) => {
-      // Pinned items first
-      if (a.isPinned && !b.isPinned) return -1;
-      if (!a.isPinned && b.isPinned) return 1;
-      return new Date(b.lastTimestamp).getTime() - new Date(a.lastTimestamp).getTime();
-    });
+  // Filtered conversation list scoped to current user
+  const filteredConversations = useMemo(() => {
+    return myConversations
+      .filter(c => {
+        // Filter by chip
+        if (activeFilter === 'unread' && c.unreadCount === 0) return false;
+        if (activeFilter === 'pinned' && !c.isPinned) return false;
+        if (['founder', 'investor', 'mentor', 'admin'].includes(activeFilter) && c.otherUser.role !== activeFilter) {
+          return false;
+        }
+        // Filter by search query
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        return (
+          c.otherUser.name.toLowerCase().includes(q) ||
+          (c.otherUser.company && c.otherUser.company.toLowerCase().includes(q)) ||
+          c.lastMessage.toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => {
+        // Pinned items first
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        return new Date(b.lastTimestamp).getTime() - new Date(a.lastTimestamp).getTime();
+      });
+  }, [myConversations, activeFilter, searchQuery]);
 
   // Send standard text / reply message
   const handleSendMessage = (e?: React.FormEvent) => {
@@ -381,9 +447,9 @@ export const MessagesPage: React.FC = () => {
             <div>
               <h2 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
                 <span>Chats</span>
-                {conversations.reduce((acc, c) => acc + c.unreadCount, 0) > 0 && (
+                {myConversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0) > 0 && (
                   <span className="px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[10px] font-bold">
-                    {conversations.reduce((acc, c) => acc + c.unreadCount, 0)} new
+                    {myConversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0)} new
                   </span>
                 )}
               </h2>

@@ -339,6 +339,7 @@ export interface MessageItem {
   isStarred?: boolean;
   isPinned?: boolean;
   deleted?: boolean;
+  deletedFor?: string[]; // IDs of users who deleted this message for themselves
   reactions?: { [emoji: string]: string[] }; // emoji -> array of user names
   meetingInvite?: {
     date: string;
@@ -355,6 +356,10 @@ export interface Conversation {
   lastMessage: string;
   lastTimestamp: string;
   unreadCount: number;
+  unreadBy?: { [userId: string]: number }; // Per-user unread message counts
+  deletedFor?: string[]; // IDs of users who deleted/cleared this conversation for themselves
+  pinnedBy?: string[]; // IDs of users who pinned this conversation
+  mutedBy?: string[]; // IDs of users who muted this conversation
   isPinned?: boolean;
   isMuted?: boolean;
   isArchived?: boolean;

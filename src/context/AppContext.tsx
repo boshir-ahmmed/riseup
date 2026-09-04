@@ -131,6 +131,7 @@ interface AppContextType {
   respondToMeetingInvite: (messageId: string, status: 'confirmed' | 'declined') => void;
   deleteMessage: (messageId: string) => void;
   deleteConversation: (convId: string) => void;
+  markConversationAsRead: (convId: string) => void;
   toggleStarMessage: (messageId: string) => void;
   togglePinConversation: (convId: string) => void;
   toggleMuteConversation: (convId: string) => void;
@@ -230,20 +231,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     safeGetItem<Post[]>(LOCAL_STORAGE_KEY + '_posts', INITIAL_POSTS)
   );
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>(() =>
-    safeGetItem<NotificationItem[]>(LOCAL_STORAGE_KEY + '_notifications', INITIAL_NOTIFICATIONS)
-  );
+  const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
+    const raw = safeGetItem<NotificationItem[]>(LOCAL_STORAGE_KEY + '_notifications', INITIAL_NOTIFICATIONS);
+    const list = raw && raw.length > 0 ? raw : INITIAL_NOTIFICATIONS;
+    // Real texting apps do not pollute platform system notifications with chat messages
+    return list.filter(n => n.type !== 'message');
+  });
 
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     const raw = safeGetItem<Conversation[]>(LOCAL_STORAGE_KEY + '_conversations', INITIAL_CONVERSATIONS);
-    if (raw && raw.length > 0) return raw;
-    return INITIAL_CONVERSATIONS;
+    const existing = raw && raw.length > 0 ? raw : INITIAL_CONVERSATIONS;
+    const existingIds = new Set(existing.map(c => c.id));
+    const missing = INITIAL_CONVERSATIONS.filter(c => !existingIds.has(c.id));
+    return [...existing, ...missing];
   });
 
   const [messages, setMessages] = useState<MessageItem[]>(() => {
     const raw = safeGetItem<MessageItem[]>(LOCAL_STORAGE_KEY + '_messages', INITIAL_MESSAGES);
-    if (raw && raw.length > 0) return raw;
-    return INITIAL_MESSAGES;
+    const existing = raw && raw.length > 0 ? raw : INITIAL_MESSAGES;
+    const existingIds = new Set(existing.map(m => m.id));
+    const missing = INITIAL_MESSAGES.filter(m => !existingIds.has(m.id));
+    return [...existing, ...missing];
   });
 
   const [investorRequests, setInvestorRequests] = useState<InvestorRequest[]>(() =>
@@ -1674,26 +1682,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (updatedMsg) {
       if (isSupabaseConfigured) syncMessageToSupabase(updatedMsg);
       broadcastRealtimeEvent({ type: 'message:update', payload: { message: updatedMsg } });
-
-      const msg = messages.find(m => m.id === messageId);
-      if (msg && isAdded && msg.senderId !== currentUser.id) {
-        const notif: NotificationItem = {
-          id: `notif-${Date.now()}`,
-          recipientId: msg.senderId,
-          senderId: currentUser.id,
-          senderName: currentUser.name,
-          senderAvatar: currentUser.avatar,
-          senderRole: currentUser.role,
-          type: 'message',
-          title: `Reaction to your message`,
-          message: `${currentUser.name} reacted with ${emoji} to your message.`,
-          targetId: msg.conversationId,
-          isRead: false,
-          createdAt: new Date().toISOString()
-        };
-        setNotifications(prev => [notif, ...prev]);
-        broadcastRealtimeEvent({ type: 'notification:new', payload: { notification: notif } });
-      }
     }
   };
 
@@ -1750,7 +1738,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  // Messaging operations with real-time feedback and intelligent auto-replies
+  // Mark conversation as read for current user
+  const markConversationAsRead = (convId: string) => {
+    setConversations(prev =>
+      prev.map(c => {
+        if (c.id === convId) {
+          const updatedUnreadBy = { ...(c.unreadBy || {}), [currentUser.id]: 0 };
+          return {
+            ...c,
+            unreadCount: 0,
+            unreadBy: updatedUnreadBy
+          };
+        }
+        return c;
+      })
+    );
+  };
+
+  // Messaging operations with real-time feedback and clean user scoping
   const sendMessage = (
     recipientId: string,
     text: string,
@@ -1777,8 +1782,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       conversations.find(
         c =>
           (c.participantA === currentUser.id && c.participantB === recipientId) ||
-          (c.participantB === currentUser.id && c.participantA === recipientId) ||
-          c.otherUser?.id === recipientId
+          (c.participantB === currentUser.id && c.participantA === recipientId)
       );
 
     const convId = conv ? conv.id : `conv-${Date.now()}`;
@@ -1807,10 +1811,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     let activeConvObj: Conversation;
 
     if (conv) {
+      // Unhide conversation if it was previously deleted for currentUser or recipient
+      const unhiddenDeletedFor = (conv.deletedFor || []).filter(
+        uid => uid !== currentUser.id && uid !== recipientId
+      );
+      const recipientPrevUnread = conv.unreadBy?.[recipientId] ?? conv.unreadCount ?? 0;
+      const updatedUnreadBy = {
+        ...(conv.unreadBy || {}),
+        [currentUser.id]: 0,
+        [recipientId]: recipientPrevUnread + 1
+      };
+
       activeConvObj = {
         ...conv,
+        deletedFor: unhiddenDeletedFor,
         lastMessage: lastPreview,
-        lastTimestamp: new Date().toISOString()
+        lastTimestamp: new Date().toISOString(),
+        unreadCount: 0,
+        unreadBy: updatedUnreadBy
       };
       setConversations(prev =>
         prev.map(c => (c.id === convId ? activeConvObj : c))
@@ -1823,6 +1841,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         lastMessage: lastPreview,
         lastTimestamp: new Date().toISOString(),
         unreadCount: 0,
+        unreadBy: {
+          [currentUser.id]: 0,
+          [recipientId]: 1
+        },
         otherUser: {
           id: recipientUser.id,
           name: recipientUser.name,
@@ -1839,29 +1861,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (isSupabaseConfigured) syncConversationToSupabase(activeConvObj);
 
-    // Broadcast realtime event for remote and cross-tab delivery
+    // Broadcast realtime event for remote and cross-tab delivery without adding to platform notification list
     broadcastRealtimeEvent({
       type: 'message:new',
       payload: { message: newMsg, conversation: activeConvObj }
     });
-
-    // Notify recipient
-    const msgNotif: NotificationItem = {
-      id: `notif-${Date.now()}`,
-      recipientId,
-      senderId: currentUser.id,
-      senderName: currentUser.name,
-      senderAvatar: currentUser.avatar,
-      senderRole: currentUser.role,
-      type: 'message',
-      title: `New Message from ${currentUser.name}`,
-      message: text ? (text.length > 60 ? `${text.substring(0, 60)}...` : text) : 'Sent an attachment',
-      targetId: convId,
-      isRead: false,
-      createdAt: new Date().toISOString()
-    };
-    setNotifications(prev => [msgNotif, ...prev]);
-    broadcastRealtimeEvent({ type: 'notification:new', payload: { notification: msgNotif } });
 
     setActiveConversationId(convId);
 
@@ -1873,26 +1877,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, 600);
   };
 
+  // Delete message for current user only ("Delete for me")
   const deleteMessage = (messageId: string) => {
     soundManager.playPop();
-    const targetMsg = messages.find(m => m.id === messageId);
-    const convId = targetMsg?.conversationId || '';
-    setMessages(prev => prev.filter(m => m.id !== messageId));
-    if (isSupabaseConfigured) deleteMessageFromSupabase(messageId);
-    broadcastRealtimeEvent({ type: 'message:delete', payload: { messageId, conversationId: convId } });
-    showToast('Message Deleted', 'Removed from conversation history.', 'info');
+    setMessages(prev =>
+      prev.map(m => {
+        if (m.id === messageId) {
+          const deletedFor = Array.from(new Set([...(m.deletedFor || []), currentUser.id]));
+          return { ...m, deletedFor };
+        }
+        return m;
+      })
+    );
+    showToast('Message Deleted', 'Removed from your chat view.', 'info');
   };
 
+  // Delete conversation for current user only ("Delete chat for me")
   const deleteConversation = (convId: string) => {
     soundManager.playPop();
-    setConversations(prev => prev.filter(c => c.id !== convId));
-    setMessages(prev => prev.filter(m => m.conversationId !== convId));
+    setConversations(prev =>
+      prev.map(c => {
+        if (c.id === convId) {
+          const deletedFor = Array.from(new Set([...(c.deletedFor || []), currentUser.id]));
+          return { ...c, deletedFor };
+        }
+        return c;
+      })
+    );
+    setMessages(prev =>
+      prev.map(m => {
+        if (m.conversationId === convId) {
+          const deletedFor = Array.from(new Set([...(m.deletedFor || []), currentUser.id]));
+          return { ...m, deletedFor };
+        }
+        return m;
+      })
+    );
     if (activeConversationId === convId) {
       setActiveConversationId(null);
     }
-    if (isSupabaseConfigured) deleteConversationFromSupabase(convId);
-    broadcastRealtimeEvent({ type: 'conversation:delete', payload: { conversationId: convId } });
-    showToast('Conversation Deleted', 'Chat history removed.', 'info');
+    showToast('Chat Deleted', 'Chat cleared from your inbox.', 'info');
   };
 
   const toggleStarMessage = (messageId: string) => {
@@ -1902,21 +1926,48 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
   };
 
+  // Pin conversation scoped per user
   const togglePinConversation = (convId: string) => {
     soundManager.playPop();
     setConversations(prev =>
-      prev.map(c => (c.id === convId ? { ...c, isPinned: !c.isPinned } : c))
+      prev.map(c => {
+        if (c.id === convId) {
+          const currentPinned = c.pinnedBy || (c.isPinned ? [c.participantA] : []);
+          const isNowPinned = currentPinned.includes(currentUser.id);
+          const pinnedBy = isNowPinned
+            ? currentPinned.filter(id => id !== currentUser.id)
+            : [...currentPinned, currentUser.id];
+          return { ...c, pinnedBy, isPinned: !isNowPinned };
+        }
+        return c;
+      })
     );
   };
 
+  // Mute conversation scoped per user
   const toggleMuteConversation = (convId: string) => {
     soundManager.playPop();
     setConversations(prev =>
-      prev.map(c => (c.id === convId ? { ...c, isMuted: !c.isMuted } : c))
+      prev.map(c => {
+        if (c.id === convId) {
+          const currentMuted = c.mutedBy || (c.isMuted ? [c.participantA] : []);
+          const isNowMuted = currentMuted.includes(currentUser.id);
+          const mutedBy = isNowMuted
+            ? currentMuted.filter(id => id !== currentUser.id)
+            : [...currentMuted, currentUser.id];
+          return { ...c, mutedBy, isMuted: !isNowMuted };
+        }
+        return c;
+      })
     );
   };
 
   const startConversationWithUser = (user: User) => {
+    if (user.id === currentUser.id) {
+      showToast('Cannot Message Yourself', 'Select another ecosystem member to message.', 'info');
+      return;
+    }
+
     let conv = conversations.find(
       c =>
         (c.participantA === currentUser.id && c.participantB === user.id) ||
@@ -1924,6 +1975,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
 
     if (conv) {
+      // If previously deleted for currentUser, unhide it
+      if (conv.deletedFor && conv.deletedFor.includes(currentUser.id)) {
+        const unhidden = conv.deletedFor.filter(id => id !== currentUser.id);
+        setConversations(prev =>
+          prev.map(c => (c.id === conv!.id ? { ...c, deletedFor: unhidden } : c))
+        );
+      }
       setActiveConversationId(conv.id);
     } else {
       const convId = `conv-${Date.now()}`;
@@ -1931,9 +1989,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         id: convId,
         participantA: currentUser.id,
         participantB: user.id,
-        lastMessage: `Started a new conversation with ${user.name}`,
+        lastMessage: 'Say hello to start the conversation',
         lastTimestamp: new Date().toISOString(),
         unreadCount: 0,
+        unreadBy: { [currentUser.id]: 0, [user.id]: 0 },
         otherUser: {
           id: user.id,
           name: user.name,
@@ -2234,6 +2293,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         respondToMeetingInvite,
         deleteMessage,
         deleteConversation,
+        markConversationAsRead,
         toggleStarMessage,
         togglePinConversation,
         toggleMuteConversation,

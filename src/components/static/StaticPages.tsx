@@ -105,8 +105,8 @@ export const FeaturesPage: React.FC = () => {
       role: 'Mentors'
     },
     {
-      title: 'Direct Messaging & Video Synced Chat',
-      desc: 'Seamless direct communication between founders and syndicate partners with simulated responses for instant demo engagement.',
+      title: 'Direct Messaging & Real-Time Chat',
+      desc: 'Seamless 1-to-1 direct messaging between founders, investors, and mentors with instant delivery and clean conversation management.',
       icon: Users,
       role: 'All Members'
     },

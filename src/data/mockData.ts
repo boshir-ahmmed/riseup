@@ -1060,6 +1060,7 @@ export const INITIAL_CONVERSATIONS: Conversation[] = [
     lastMessage: 'Thanks! We just updated our Q2 clinical traction metrics.',
     lastTimestamp: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
     unreadCount: 0,
+    unreadBy: { 'user-admin': 0, 'user-founder-1': 0 },
     isPinned: true,
     isMuted: false,
     otherUser: {
@@ -1080,6 +1081,7 @@ export const INITIAL_CONVERSATIONS: Conversation[] = [
     lastMessage: 'Looking forward to reviewing the round details this week.',
     lastTimestamp: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
     unreadCount: 1,
+    unreadBy: { 'user-admin': 1, 'user-investor-1': 0 },
     isPinned: false,
     isMuted: false,
     otherUser: {
@@ -1100,6 +1102,49 @@ export const INITIAL_CONVERSATIONS: Conversation[] = [
     lastMessage: 'Happy to do an advisory session on your pricing structure.',
     lastTimestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
     unreadCount: 0,
+    unreadBy: { 'user-admin': 0, 'user-mentor-1': 0 },
+    isPinned: false,
+    isMuted: false,
+    otherUser: {
+      id: 'user-mentor-1',
+      name: 'Dr. Elena Rostova',
+      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+      role: 'mentor',
+      title: 'Executive AI Advisor | Ex-VP Product',
+      company: 'Scale Advisory Labs',
+      isOnline: false,
+      lastSeen: '2h ago'
+    }
+  },
+  {
+    id: 'conv-4',
+    participantA: 'user-founder-1',
+    participantB: 'user-investor-1',
+    lastMessage: 'We would love to co-lead the remaining $350k seed round.',
+    lastTimestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+    unreadCount: 1,
+    unreadBy: { 'user-founder-1': 1, 'user-investor-1': 0 },
+    isPinned: true,
+    isMuted: false,
+    otherUser: {
+      id: 'user-investor-1',
+      name: 'Marcus Vance',
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+      role: 'investor',
+      title: 'General Partner at Apex Venture Capital',
+      company: 'Apex Venture Capital',
+      isOnline: true,
+      lastSeen: 'Active now'
+    }
+  },
+  {
+    id: 'conv-5',
+    participantA: 'user-founder-1',
+    participantB: 'user-mentor-1',
+    lastMessage: 'I reviewed your clinical regulatory deck. Outstanding progress!',
+    lastTimestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+    unreadCount: 0,
+    unreadBy: { 'user-founder-1': 0, 'user-mentor-1': 0 },
     isPinned: false,
     isMuted: false,
     otherUser: {
@@ -1124,7 +1169,7 @@ export const INITIAL_MESSAGES: MessageItem[] = [
     senderAvatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
     senderRole: 'founder',
     recipientId: 'user-admin',
-    recipientName: 'You',
+    recipientName: 'Alexander Mercer',
     text: 'Hello! Welcome to RiseUp. Excited to share our latest NeuroPulse progress with you.',
     timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
     status: 'delivered'
@@ -1133,7 +1178,7 @@ export const INITIAL_MESSAGES: MessageItem[] = [
     id: 'msg-2',
     conversationId: 'conv-1',
     senderId: 'user-admin',
-    senderName: 'You',
+    senderName: 'Alexander Mercer',
     senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     senderRole: 'admin',
     recipientId: 'user-founder-1',
@@ -1150,11 +1195,11 @@ export const INITIAL_MESSAGES: MessageItem[] = [
     senderAvatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
     senderRole: 'founder',
     recipientId: 'user-admin',
-    recipientName: 'You',
+    recipientName: 'Alexander Mercer',
     text: 'Thanks! We just updated our Q2 clinical traction metrics.',
     timestamp: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
     status: 'delivered',
-    reactions: { '❤️': ['You'] }
+    reactions: { '❤️': ['Alexander Mercer'] }
   },
   {
     id: 'msg-4',
@@ -1164,7 +1209,7 @@ export const INITIAL_MESSAGES: MessageItem[] = [
     senderAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
     senderRole: 'investor',
     recipientId: 'user-admin',
-    recipientName: 'You',
+    recipientName: 'Alexander Mercer',
     text: 'Looking forward to reviewing the round details this week.',
     timestamp: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
     status: 'delivered'
@@ -1177,9 +1222,61 @@ export const INITIAL_MESSAGES: MessageItem[] = [
     senderAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
     senderRole: 'mentor',
     recipientId: 'user-admin',
-    recipientName: 'You',
+    recipientName: 'Alexander Mercer',
     text: 'Happy to do an advisory session on your pricing structure.',
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+    status: 'delivered'
+  },
+  {
+    id: 'msg-6',
+    conversationId: 'conv-4',
+    senderId: 'user-founder-1',
+    senderName: 'Sarah Chen',
+    senderAvatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
+    senderRole: 'founder',
+    recipientId: 'user-investor-1',
+    recipientName: 'Marcus Vance',
+    text: 'Hi Marcus, thank you for reaching out regarding NeuroPulse AI seed round.',
+    timestamp: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
+    status: 'delivered'
+  },
+  {
+    id: 'msg-7',
+    conversationId: 'conv-4',
+    senderId: 'user-investor-1',
+    senderName: 'Marcus Vance',
+    senderAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    senderRole: 'investor',
+    recipientId: 'user-founder-1',
+    recipientName: 'Sarah Chen',
+    text: 'We would love to co-lead the remaining $350k seed round.',
+    timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+    status: 'delivered'
+  },
+  {
+    id: 'msg-8',
+    conversationId: 'conv-5',
+    senderId: 'user-founder-1',
+    senderName: 'Sarah Chen',
+    senderAvatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
+    senderRole: 'founder',
+    recipientId: 'user-mentor-1',
+    recipientName: 'Dr. Elena Rostova',
+    text: 'Dr. Rostova, thank you for accepting our mentorship request!',
+    timestamp: new Date(Date.now() - 1000 * 60 * 150).toISOString(),
+    status: 'delivered'
+  },
+  {
+    id: 'msg-9',
+    conversationId: 'conv-5',
+    senderId: 'user-mentor-1',
+    senderName: 'Dr. Elena Rostova',
+    senderAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+    senderRole: 'mentor',
+    recipientId: 'user-founder-1',
+    recipientName: 'Sarah Chen',
+    text: 'I reviewed your clinical regulatory deck. Outstanding progress!',
+    timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
     status: 'delivered'
   }
 ];

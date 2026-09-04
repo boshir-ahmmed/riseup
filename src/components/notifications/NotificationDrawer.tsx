@@ -34,7 +34,9 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
 
   if (!isOpen) return null;
 
-  const userNotifs = notifications.filter(n => n.recipientId === currentUser.id || n.recipientId === 'all');
+  const userNotifs = notifications.filter(
+    n => (n.recipientId === currentUser.id || n.recipientId === 'all') && n.type !== 'message'
+  );
 
   const filteredNotifs = userNotifs.filter(n => {
     if (filter === 'all') return true;
@@ -45,7 +47,7 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
         n.type === 'mentor_accepted' ||
         n.type === 'investor_joined'
       );
-    if (filter === 'interactions') return n.type === 'like' || n.type === 'comment' || n.type === 'message' || n.type === 'meeting';
+    if (filter === 'interactions') return n.type === 'like' || n.type === 'comment' || n.type === 'meeting';
     if (filter === 'system') return n.type === 'system_broadcast' || n.type === 'startup_verified';
     return true;
   });

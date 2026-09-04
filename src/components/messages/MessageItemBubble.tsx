@@ -166,7 +166,7 @@ export const MessageItemBubble: React.FC<MessageItemBubbleProps> = ({
             type="button"
             onClick={() => onDelete(message.id)}
             className="p-1 text-slate-400 hover:text-rose-500 transition cursor-pointer"
-            title="Delete message"
+            title="Delete for me"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>

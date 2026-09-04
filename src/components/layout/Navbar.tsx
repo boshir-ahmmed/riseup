@@ -54,8 +54,17 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
-  const unreadNotifsCount = notifications.filter(n => n.recipientId === currentUser.id && !n.isRead).length;
-  const unreadMessagesCount = conversations.reduce((acc, c) => acc + c.unreadCount, 0);
+  const unreadNotifsCount = notifications.filter(
+    n => (n.recipientId === currentUser.id || n.recipientId === 'all') && !n.isRead && n.type !== 'message'
+  ).length;
+  const unreadMessagesCount = conversations
+    .filter(c => {
+      const isParticipant = c.participantA === currentUser.id || c.participantB === currentUser.id;
+      if (!isParticipant) return false;
+      if (c.deletedFor && c.deletedFor.includes(currentUser.id)) return false;
+      return true;
+    })
+    .reduce((acc, c) => acc + (c.unreadBy ? (c.unreadBy[currentUser.id] ?? 0) : (c.unreadCount || 0)), 0);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
