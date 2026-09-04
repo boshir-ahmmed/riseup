@@ -90,15 +90,7 @@ export const Footer: React.FC = () => {
               >
                 Mentor Advisory
               </button>
-              <button
-                onClick={() => {
-                  switchRole('admin');
-                  setActiveView('admin-dashboard');
-                }}
-                className="hover:text-rose-600 dark:hover:text-rose-400 transition text-left"
-              >
-                Super Admin Panel
-              </button>
+             
             </div>
           </div>
 
