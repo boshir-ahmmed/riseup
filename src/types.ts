@@ -295,6 +295,7 @@ export interface NotificationItem {
     | 'investor_joined'
     | 'connection'
     | 'message'
+    | 'meeting'
     | 'system_broadcast'
     | 'startup_verified'
     | 'founder_pitch'

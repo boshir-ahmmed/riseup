@@ -29,12 +29,19 @@ import {
   fetchMentorRequestsFromSupabase,
   fetchFounderPitchesFromSupabase,
   syncPostToSupabase,
+  deletePostFromSupabase,
   syncStartupToSupabase,
   syncUserToSupabase,
   syncMessageToSupabase,
+  deleteMessageFromSupabase,
+  syncConversationToSupabase,
+  deleteConversationFromSupabase,
   syncInvestorRequestToSupabase,
   syncMentorRequestToSupabase,
-  syncFounderPitchToSupabase
+  syncFounderPitchToSupabase,
+  broadcastRealtimeEvent,
+  subscribeToRealtimeSync,
+  RealtimeSyncEvent
 } from '../lib/supabase';
 import {
   INITIAL_USERS,
@@ -415,7 +422,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           fetchUsersFromSupabase(),
           fetchStartupsFromSupabase(),
           fetchPostsFromSupabase(),
-          fetchConversationsFromSupabase(),
+          fetchConversationsFromSupabase(currentUser?.id),
           fetchMessagesFromSupabase(),
           fetchInvestorRequestsFromSupabase(),
           fetchMentorRequestsFromSupabase(),
@@ -424,11 +431,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         if (remoteUsers && remoteUsers.length > 0) {
           setUsers(prev => {
-            // Find custom users created by this client not yet in remote database
             const customLocalUsers = prev.filter(
               localU => !remoteUsers.some(rU => rU.id === localU.id)
             );
-            // Automatically push any local newly created user accounts to Supabase
             customLocalUsers.forEach(u => {
               syncUserToSupabase(u);
             });
@@ -436,22 +441,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           });
         }
 
-        // Guarantee current user is synced to Supabase if they are a newly created account
         if (currentUser && currentUser.id.startsWith('user-') && !['user-admin', 'user-founder-1', 'user-investor-1', 'user-mentor-1', 'user-founder-2', 'user-founder-3', 'user-founder-4'].includes(currentUser.id)) {
           syncUserToSupabase(currentUser);
         }
 
         if (remoteStartups && remoteStartups.length > 0) setStartups(remoteStartups);
-        if (remotePosts && remotePosts.length > 0) setPosts(remotePosts);
+        if (remotePosts && remotePosts.length > 0) {
+          setPosts(prev => {
+            const remoteMap = new Map(remotePosts.map(p => [p.id, p]));
+            const merged = [...remotePosts];
+            for (const localP of prev) {
+              if (!remoteMap.has(localP.id)) merged.push(localP);
+            }
+            return merged;
+          });
+        }
         if (remoteConvs && remoteConvs.length > 0) {
-          const filteredConvs = remoteConvs.filter(c => !DEMO_CONV_IDS.includes(c.id));
-          setConversations(filteredConvs);
+          setConversations(prev => {
+            const remoteMap = new Map(remoteConvs.map(c => [c.id, c]));
+            const merged = [...remoteConvs];
+            for (const localC of prev) {
+              if (!remoteMap.has(localC.id)) merged.push(localC);
+            }
+            return merged;
+          });
         }
         if (remoteMsgs && remoteMsgs.length > 0) {
-          const filteredMsgs = remoteMsgs.filter(
-            m => !DEMO_MSG_IDS.includes(m.id) && !DEMO_CONV_IDS.includes(m.conversationId)
-          );
-          setMessages(filteredMsgs);
+          setMessages(prev => {
+            const remoteMap = new Map(remoteMsgs.map(m => [m.id, m]));
+            const merged = [...remoteMsgs];
+            for (const localM of prev) {
+              if (!remoteMap.has(localM.id)) merged.push(localM);
+            }
+            return merged;
+          });
         }
         if (remoteInvReqs && remoteInvReqs.length > 0) setInvestorRequests(remoteInvReqs);
         if (remoteMenReqs && remoteMenReqs.length > 0) setMentorRequests(remoteMenReqs);
@@ -461,6 +484,118 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     };
     initSupabaseData();
+  }, [currentUser]);
+
+  // Real-time synchronization listener across tabs & cloud (messages, posts, reactions, comments, notifications)
+  useEffect(() => {
+    const unsubscribe = subscribeToRealtimeSync((event: RealtimeSyncEvent) => {
+      switch (event.type) {
+        case 'message:new': {
+          const { message, conversation } = event.payload;
+          setMessages(prev => {
+            if (prev.some(m => m.id === message.id)) {
+              return prev.map(m => (m.id === message.id ? { ...m, ...message } : m));
+            }
+            return [...prev, message];
+          });
+          if (conversation) {
+            setConversations(prev => {
+              if (prev.some(c => c.id === conversation.id)) {
+                return prev.map(c => (c.id === conversation.id ? { ...c, ...conversation } : c));
+              }
+              return [conversation, ...prev];
+            });
+          }
+          if (message.recipientId === currentUser.id && message.senderId !== currentUser.id) {
+            soundManager.playPop();
+            showToast(
+              `Message from ${message.senderName}`,
+              message.text.length > 60 ? `${message.text.substring(0, 60)}...` : message.text,
+              'info'
+            );
+          }
+          break;
+        }
+
+        case 'message:update': {
+          const { message } = event.payload;
+          setMessages(prev => prev.map(m => (m.id === message.id ? { ...m, ...message } : m)));
+          break;
+        }
+
+        case 'message:delete': {
+          const { messageId } = event.payload;
+          setMessages(prev => prev.filter(m => m.id !== messageId));
+          break;
+        }
+
+        case 'conversation:new':
+        case 'conversation:update': {
+          const { conversation } = event.payload;
+          setConversations(prev => {
+            if (prev.some(c => c.id === conversation.id)) {
+              return prev.map(c => (c.id === conversation.id ? { ...c, ...conversation } : c));
+            }
+            return [conversation, ...prev];
+          });
+          break;
+        }
+
+        case 'conversation:delete': {
+          const { conversationId } = event.payload;
+          setConversations(prev => prev.filter(c => c.id !== conversationId));
+          setMessages(prev => prev.filter(m => m.conversationId !== conversationId));
+          break;
+        }
+
+        case 'post:new': {
+          const { post } = event.payload;
+          setPosts(prev => {
+            if (prev.some(p => p.id === post.id)) return prev;
+            return [post, ...prev];
+          });
+          if (post.authorId !== currentUser.id) {
+            soundManager.playReaction();
+            showToast('New Community Post', `${post.authorName} published a new post.`, 'info');
+          }
+          break;
+        }
+
+        case 'post:update': {
+          const { post } = event.payload;
+          setPosts(prev => prev.map(p => (p.id === post.id ? { ...p, ...post } : p)));
+          break;
+        }
+
+        case 'post:delete': {
+          const { postId } = event.payload;
+          setPosts(prev => prev.filter(p => p.id !== postId));
+          break;
+        }
+
+        case 'notification:new': {
+          const { notification } = event.payload;
+          if (
+            notification.recipientId === currentUser.id ||
+            notification.recipientId === 'all' ||
+            notification.recipientId === currentUser.role ||
+            (notification.recipientId === 'user-admin' && currentUser.role === 'admin')
+          ) {
+            setNotifications(prev => {
+              if (prev.some(n => n.id === notification.id)) return prev;
+              return [notification, ...prev];
+            });
+            soundManager.playReaction();
+            showToast(notification.title, notification.message, 'info');
+          }
+          break;
+        }
+      }
+    }, currentUser?.id);
+
+    return () => {
+      unsubscribe();
+    };
   }, [currentUser]);
 
   const toggleTheme = () => {
@@ -645,6 +780,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setPosts(prev => [newPost, ...prev]);
     if (isSupabaseConfigured) syncPostToSupabase(newPost);
+    broadcastRealtimeEvent({ type: 'post:new', payload: { post: newPost } });
     soundManager.playSuccess();
     showToast('Post Published', `Your post has been broadcast to the ecosystem feed.`, 'info');
 
@@ -664,12 +800,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       createdAt: new Date().toISOString()
     };
     setNotifications(prev => [newNotif, ...prev]);
+    broadcastRealtimeEvent({ type: 'notification:new', payload: { notification: newNotif } });
   };
 
   const reactToPost = (postId: string, _reactionType: ReactionType = 'love') => {
     soundManager.playReaction();
 
     let isLikedNow = false;
+    let updatedPost: Post | null = null;
 
     setPosts(prev =>
       prev.map(p => {
@@ -677,7 +815,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const currentlyLiked = !!p.isLiked || p.userReaction === 'love';
           isLikedNow = !currentlyLiked;
 
-          return {
+          const updated: Post = {
             ...p,
             userReaction: isLikedNow ? 'love' : null,
             isLiked: isLikedNow,
@@ -690,10 +828,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               fire: 0
             }
           };
+          updatedPost = updated;
+          return updated;
         }
         return p;
       })
     );
+
+    if (updatedPost) {
+      if (isSupabaseConfigured) syncPostToSupabase(updatedPost);
+      broadcastRealtimeEvent({ type: 'post:update', payload: { post: updatedPost } });
+    }
 
     // Notify author if not self and becoming liked
     const targetPost = posts.find(p => p.id === postId);
@@ -713,6 +858,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         createdAt: new Date().toISOString()
       };
       setNotifications(prev => [notif, ...prev]);
+      broadcastRealtimeEvent({ type: 'notification:new', payload: { notification: notif } });
     }
   };
 
@@ -736,11 +882,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       prev.map(p => {
         if (p.id === postId) {
           const isBookmarked = !p.isBookmarked;
-          return {
+          const updated: Post = {
             ...p,
             isBookmarked,
             bookmarksCount: isBookmarked ? p.bookmarksCount + 1 : Math.max(0, p.bookmarksCount - 1)
           };
+          if (isSupabaseConfigured) syncPostToSupabase(updated);
+          return updated;
         }
         return p;
       })
@@ -749,10 +897,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const toggleLikeComment = (postId: string, commentId: string) => {
     soundManager.playPop();
+    let updatedPost: Post | null = null;
     setPosts(prev =>
       prev.map(p => {
         if (p.id === postId) {
-          return {
+          const updated: Post = {
             ...p,
             comments: p.comments.map(c => {
               if (c.id === commentId) {
@@ -780,10 +929,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               };
             })
           };
+          updatedPost = updated;
+          return updated;
         }
         return p;
       })
     );
+
+    if (updatedPost) {
+      if (isSupabaseConfigured) syncPostToSupabase(updatedPost);
+      broadcastRealtimeEvent({ type: 'post:update', payload: { post: updatedPost } });
+    }
   };
 
   const addCommentToPost = (postId: string, content: string) => {
@@ -805,18 +961,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       replies: []
     };
 
+    let updatedPost: Post | null = null;
     setPosts(prev =>
       prev.map(p => {
         if (p.id === postId) {
-          return {
+          const updated: Post = {
             ...p,
             commentsCount: p.commentsCount + 1,
             comments: [...p.comments, newComment]
           };
+          updatedPost = updated;
+          return updated;
         }
         return p;
       })
     );
+
+    if (updatedPost) {
+      if (isSupabaseConfigured) syncPostToSupabase(updatedPost);
+      broadcastRealtimeEvent({ type: 'post:update', payload: { post: updatedPost } });
+    }
 
     showToast('Comment Posted', 'Your reply is live in the discussion.', 'info');
 
@@ -838,9 +1002,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         createdAt: new Date().toISOString()
       };
       setNotifications(prev => [notif, ...prev]);
+      broadcastRealtimeEvent({ type: 'notification:new', payload: { notification: notif } });
     }
 
-    // Real-time simulated peer interaction after 2.8s
+    // Real-time peer interaction simulation after 2.8s
     if (targetPost) {
       setTimeout(() => {
         const potentialPeers = users.filter(u => u.id !== currentUser.id && u.id !== 'user-admin');
@@ -870,7 +1035,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setPosts(prevPosts =>
           prevPosts.map(postItem => {
             if (postItem.id === postId) {
-              return {
+              const withReply: Post = {
                 ...postItem,
                 commentsCount: postItem.commentsCount + 1,
                 comments: postItem.comments.map(c => {
@@ -883,6 +1048,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                   return c;
                 })
               };
+              if (isSupabaseConfigured) syncPostToSupabase(withReply);
+              broadcastRealtimeEvent({ type: 'post:update', payload: { post: withReply } });
+              return withReply;
             }
             return postItem;
           })
@@ -917,10 +1085,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       isLiked: false
     };
 
+    let updatedPost: Post | null = null;
     setPosts(prev =>
       prev.map(p => {
         if (p.id === postId) {
-          return {
+          const updated: Post = {
             ...p,
             commentsCount: p.commentsCount + 1,
             comments: p.comments.map(c => {
@@ -933,14 +1102,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               return c;
             })
           };
+          updatedPost = updated;
+          return updated;
         }
         return p;
       })
     );
+
+    if (updatedPost) {
+      if (isSupabaseConfigured) syncPostToSupabase(updatedPost);
+      broadcastRealtimeEvent({ type: 'post:update', payload: { post: updatedPost } });
+    }
   };
 
   const deletePost = (postId: string) => {
     setPosts(prev => prev.filter(p => p.id !== postId));
+    if (isSupabaseConfigured) deletePostFromSupabase(postId);
+    broadcastRealtimeEvent({ type: 'post:delete', payload: { postId } });
     const audit: SystemAuditLog = {
       id: `log-${Date.now()}`,
       timestamp: new Date().toISOString(),
@@ -1123,6 +1301,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       createdAt: new Date().toISOString()
     };
     setNotifications(prev => [notif, ...prev]);
+    broadcastRealtimeEvent({ type: 'notification:new', payload: { notification: notif } });
 
     soundManager.playSuccess();
     showToast(
@@ -1247,6 +1426,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       createdAt: new Date().toISOString()
     };
     setNotifications(prev => [notif, ...prev]);
+    broadcastRealtimeEvent({ type: 'notification:new', payload: { notification: notif } });
 
     soundManager.playSuccess();
     showToast('Mentor Request Sent', `Offered mentorship guidance to ${targetStartup.name}.`, 'mentor');
@@ -1306,6 +1486,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       createdAt: new Date().toISOString()
     };
     setNotifications(prev => [notif, ...prev]);
+    broadcastRealtimeEvent({ type: 'notification:new', payload: { notification: notif } });
   };
 
   const respondToInvestorRequest = (requestId: string, accept: boolean) => {
@@ -1357,6 +1538,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       createdAt: new Date().toISOString()
     };
     setNotifications(prev => [notif, ...prev]);
+    broadcastRealtimeEvent({ type: 'notification:new', payload: { notification: notif } });
   };
 
   const sendFounderPitch = (
@@ -1426,6 +1608,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       createdAt: new Date().toISOString()
     };
     setNotifications(prev => [notif, ...prev]);
+    broadcastRealtimeEvent({ type: 'notification:new', payload: { notification: notif } });
 
     soundManager.playSuccess();
     showToast(
@@ -1459,6 +1642,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             createdAt: new Date().toISOString()
           };
           setNotifications(prevNotifs => [notif, ...prevNotifs]);
+          broadcastRealtimeEvent({ type: 'notification:new', payload: { notification: notif } });
 
           return updated;
         }
@@ -1474,15 +1658,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
   };
 
-  const reactToMessage = (messageId: string, _emoji: string = '❤️') => {
-    const emoji = '❤️'; // Single love react from Instagram
+  const reactToMessage = (messageId: string, emoji: string = '❤️') => {
     soundManager.playPop();
+
+    let updatedMsg: MessageItem | null = null;
+    let isAdded = false;
+
     setMessages(prev =>
       prev.map(m => {
         if (m.id === messageId) {
           const currentReactions = m.reactions || {};
           const usersForEmoji = currentReactions[emoji] || [];
           const hasReacted = usersForEmoji.includes(currentUser.name);
+          isAdded = !hasReacted;
 
           const updatedUsers = hasReacted
             ? usersForEmoji.filter(name => name !== currentUser.name)
@@ -1493,29 +1681,64 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             updatedReactions[emoji] = updatedUsers;
           }
 
-          return { ...m, reactions: updatedReactions };
+          const updated: MessageItem = { ...m, reactions: updatedReactions };
+          updatedMsg = updated;
+          return updated;
         }
         return m;
       })
     );
+
+    if (updatedMsg) {
+      if (isSupabaseConfigured) syncMessageToSupabase(updatedMsg);
+      broadcastRealtimeEvent({ type: 'message:update', payload: { message: updatedMsg } });
+
+      const msg = messages.find(m => m.id === messageId);
+      if (msg && isAdded && msg.senderId !== currentUser.id) {
+        const notif: NotificationItem = {
+          id: `notif-${Date.now()}`,
+          recipientId: msg.senderId,
+          senderId: currentUser.id,
+          senderName: currentUser.name,
+          senderAvatar: currentUser.avatar,
+          senderRole: currentUser.role,
+          type: 'message',
+          title: `Reaction to your message`,
+          message: `${currentUser.name} reacted with ${emoji} to your message.`,
+          targetId: msg.conversationId,
+          isRead: false,
+          createdAt: new Date().toISOString()
+        };
+        setNotifications(prev => [notif, ...prev]);
+        broadcastRealtimeEvent({ type: 'notification:new', payload: { notification: notif } });
+      }
+    }
   };
 
   const respondToMeetingInvite = (messageId: string, status: 'confirmed' | 'declined') => {
     soundManager.playSuccess();
+    let updatedMsg: MessageItem | null = null;
     setMessages(prev =>
       prev.map(m => {
         if (m.id === messageId && m.meetingInvite) {
-          return {
+          const updated: MessageItem = {
             ...m,
             meetingInvite: {
               ...m.meetingInvite,
               status
             }
           };
+          updatedMsg = updated;
+          return updated;
         }
         return m;
       })
     );
+
+    if (updatedMsg) {
+      if (isSupabaseConfigured) syncMessageToSupabase(updatedMsg);
+      broadcastRealtimeEvent({ type: 'message:update', payload: { message: updatedMsg } });
+    }
 
     const msg = messages.find(m => m.id === messageId);
     if (msg) {
@@ -1524,6 +1747,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         `Sync with ${msg.senderName} is ${status}. Added to ecosystem calendar.`,
         'success'
       );
+      if (msg.senderId !== currentUser.id) {
+        const notif: NotificationItem = {
+          id: `notif-${Date.now()}`,
+          recipientId: msg.senderId,
+          senderId: currentUser.id,
+          senderName: currentUser.name,
+          senderAvatar: currentUser.avatar,
+          senderRole: currentUser.role,
+          type: 'meeting',
+          title: status === 'confirmed' ? 'Meeting Confirmed' : 'Meeting Declined',
+          message: `${currentUser.name} ${status} your meeting request.`,
+          targetId: msg.conversationId,
+          isRead: false,
+          createdAt: new Date().toISOString()
+        };
+        setNotifications(prev => [notif, ...prev]);
+        broadcastRealtimeEvent({ type: 'notification:new', payload: { notification: notif } });
+      }
     }
   };
 
@@ -1570,20 +1811,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const lastPreview = text || (options?.voiceNote ? '🎤 Voice note' : options?.attachmentName ? `📎 ${options.attachmentName}` : options?.mediaUrl ? '🖼️ Photo' : 'Message');
 
+    let activeConvObj: Conversation;
+
     if (conv) {
+      activeConvObj = {
+        ...conv,
+        lastMessage: lastPreview,
+        lastTimestamp: new Date().toISOString()
+      };
       setConversations(prev =>
-        prev.map(c =>
-          c.id === convId
-            ? {
-                ...c,
-                lastMessage: lastPreview,
-                lastTimestamp: new Date().toISOString()
-              }
-            : c
-        )
+        prev.map(c => (c.id === convId ? activeConvObj : c))
       );
     } else {
-      const newConv: Conversation = {
+      activeConvObj = {
         id: convId,
         participantA: currentUser.id,
         participantB: recipientId,
@@ -1601,8 +1841,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           lastSeen: 'Active now'
         }
       };
-      setConversations(prev => [newConv, ...prev]);
+      setConversations(prev => [activeConvObj, ...prev]);
     }
+
+    if (isSupabaseConfigured) syncConversationToSupabase(activeConvObj);
+
+    // Broadcast realtime event for remote and cross-tab delivery
+    broadcastRealtimeEvent({
+      type: 'message:new',
+      payload: { message: newMsg, conversation: activeConvObj }
+    });
+
+    // Notify recipient
+    const msgNotif: NotificationItem = {
+      id: `notif-${Date.now()}`,
+      recipientId,
+      senderId: currentUser.id,
+      senderName: currentUser.name,
+      senderAvatar: currentUser.avatar,
+      senderRole: currentUser.role,
+      type: 'message',
+      title: `New Message from ${currentUser.name}`,
+      message: text ? (text.length > 60 ? `${text.substring(0, 60)}...` : text) : 'Sent an attachment',
+      targetId: convId,
+      isRead: false,
+      createdAt: new Date().toISOString()
+    };
+    setNotifications(prev => [msgNotif, ...prev]);
+    broadcastRealtimeEvent({ type: 'notification:new', payload: { notification: msgNotif } });
 
     setActiveConversationId(convId);
 
@@ -1616,7 +1882,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deleteMessage = (messageId: string) => {
     soundManager.playPop();
+    const targetMsg = messages.find(m => m.id === messageId);
+    const convId = targetMsg?.conversationId || '';
     setMessages(prev => prev.filter(m => m.id !== messageId));
+    if (isSupabaseConfigured) deleteMessageFromSupabase(messageId);
+    broadcastRealtimeEvent({ type: 'message:delete', payload: { messageId, conversationId: convId } });
     showToast('Message Deleted', 'Removed from conversation history.', 'info');
   };
 
@@ -1627,6 +1897,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (activeConversationId === convId) {
       setActiveConversationId(null);
     }
+    if (isSupabaseConfigured) deleteConversationFromSupabase(convId);
+    broadcastRealtimeEvent({ type: 'conversation:delete', payload: { conversationId: convId } });
     showToast('Conversation Deleted', 'Chat history removed.', 'info');
   };
 
@@ -1707,6 +1979,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }));
 
     setNotifications(prev => [...newNotifs, ...prev]);
+
+    // Broadcast system notification to all tabs & remote clients
+    broadcastRealtimeEvent({
+      type: 'notification:new',
+      payload: {
+        notification: {
+          id: `notif-broadcast-${Date.now()}`,
+          recipientId: 'all',
+          senderId: currentUser.id,
+          senderName: 'RiseUp Official Announcement',
+          senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+          senderRole: 'admin',
+          type: 'system_broadcast',
+          title,
+          message,
+          isRead: false,
+          createdAt: new Date().toISOString()
+        }
+      }
+    });
 
     const audit: SystemAuditLog = {
       id: `log-${Date.now()}`,

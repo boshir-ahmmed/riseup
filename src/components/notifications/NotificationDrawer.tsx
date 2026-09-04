@@ -34,7 +34,7 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
 
   if (!isOpen) return null;
 
-  const userNotifs = notifications.filter(n => n.recipientId === currentUser.id);
+  const userNotifs = notifications.filter(n => n.recipientId === currentUser.id || n.recipientId === 'all');
 
   const filteredNotifs = userNotifs.filter(n => {
     if (filter === 'all') return true;
@@ -45,7 +45,7 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
         n.type === 'mentor_accepted' ||
         n.type === 'investor_joined'
       );
-    if (filter === 'interactions') return n.type === 'like' || n.type === 'comment' || n.type === 'message';
+    if (filter === 'interactions') return n.type === 'like' || n.type === 'comment' || n.type === 'message' || n.type === 'meeting';
     if (filter === 'system') return n.type === 'system_broadcast' || n.type === 'startup_verified';
     return true;
   });
@@ -63,6 +63,9 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
         return <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />;
       case 'comment':
         return <MessageSquare className="w-4 h-4 text-blue-500" />;
+      case 'message':
+      case 'meeting':
+        return <MessageSquare className="w-4 h-4 text-indigo-500" />;
       case 'system_broadcast':
       case 'startup_verified':
         return <Radio className="w-4 h-4 text-purple-500" />;
@@ -79,6 +82,8 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
     } else if (type === 'like' || type === 'comment') {
       setSelectedPostId(targetId);
       setActiveView('post-details');
+    } else if (type === 'message' || type === 'meeting') {
+      setActiveView('messages');
     }
     onClose();
   };
