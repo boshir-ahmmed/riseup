@@ -199,7 +199,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Right Action Icons & User Dropdown */}
             <div className="flex items-center gap-1.5">
               {/* Architecture & Docs Button (For presentation) */}
-            
+              <button
+                id="open-architecture-docs-btn"
+                onClick={onOpenArchitectureDocs}
+                className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800/60 hover:bg-violet-100 dark:hover:bg-violet-900/60 transition cursor-pointer"
+                title="View Database Schema, Architecture & ER Diagram"
+              >
+                <FileCode2 className="w-3.5 h-3.5" />
+                <span>Architecture & ER</span>
+              </button>
 
               {/* Supabase Database & Table Editor Button */}
               <button
