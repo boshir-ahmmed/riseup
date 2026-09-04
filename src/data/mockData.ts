@@ -1,5 +1,3 @@
-Data->mockdata
-
 import { User, Startup, Post, NotificationItem, Conversation, MessageItem, InvestorRequest, MentorRequest, Category, SystemAuditLog, FounderPitch } from '../types';
 
 export const INITIAL_USERS: User[] = [
