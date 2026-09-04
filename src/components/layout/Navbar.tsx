@@ -206,7 +206,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 title="View Database Schema, Architecture & ER Diagram"
               >
                 <FileCode2 className="w-3.5 h-3.5" />
-                <span>Architecture & ER</span>
+                <span></span>
               </button>
 
               {/* Supabase Database & Table Editor Button */}
@@ -217,7 +217,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 title="Supabase PostgreSQL Database & Table Editor"
               >
                 <Database className="w-3.5 h-3.5" />
-                <span>Database / Tables</span>
+                <span></span>
               </button>
 
               {/* Message Box Icon Only */}
