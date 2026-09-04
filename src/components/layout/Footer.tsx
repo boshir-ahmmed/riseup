@@ -101,6 +101,50 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
+
+   {/* Col 4: Legal & Guidelines */}
+          <div className="space-y-2">
+            <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+              Information
+            </h4>
+            <ul className="space-y-1.5">
+              <li>
+                <button
+                  onClick={() => setActiveView('about')}
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                >
+                  About RiseUp
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => setActiveView('features')}
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                >
+                  Platform Features
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => setActiveView('help')}
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                >
+                  Help Center & FAQs
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => setActiveView('terms')}
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                >
+                  Privacy & Terms
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+        
+
         <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px]">
           <p>© 2025 RiseUp Startup Ecosystem. All rights reserved.</p>
           <div className="flex items-center gap-1">
