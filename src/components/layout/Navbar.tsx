@@ -196,27 +196,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </form>
             </div>
 
-{/* Architecture & Docs Button (Hidden from Header) */}
-<button
-  id="open-architecture-docs-btn"
-  onClick={onOpenArchitectureDocs}
-  className="hidden"
-  title="View Database Schema, Architecture & ER Diagram"
->
-  <FileCode2 className="w-3.5 h-3.5" />
-  <span>Architecture & ER</span>
-</button>
 
-{/* Supabase Database & Table Editor Button (Hidden from Header) */}
-<button
-  id="open-supabase-manager-btn"
-  onClick={onOpenSupabaseManager}
-  className="hidden"
-  title="Supabase PostgreSQL Database & Table Editor"
->
-  <Database className="w-3.5 h-3.5" />
-  <span>Database / Tables</span>
-</button>
 
               {/* Message Box Icon Only */}
               <button
