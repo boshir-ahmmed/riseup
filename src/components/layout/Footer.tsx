@@ -99,7 +99,7 @@ export const Footer: React.FC = () => {
               </li>
             </ul>
           </div>
-        </div>
+
 
 
    {/* Col 4: Legal & Guidelines */}
@@ -142,7 +142,12 @@ export const Footer: React.FC = () => {
               </li>
             </ul>
           </div>
+
+          
         </div>
+
+
+   
         
 
         <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px]">
