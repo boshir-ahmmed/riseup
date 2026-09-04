@@ -57,7 +57,50 @@ export const Footer: React.FC = () => {
             </ul>
           </div>
 
-         
+          {/* Col 3: Role Switcher Quick Access */}
+          <div className="space-y-2">
+            <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+              Demo Switch Roles
+            </h4>
+            <div className="flex flex-col gap-1 text-left">
+              <button
+                onClick={() => {
+                  switchRole('founder');
+                  setActiveView('founder-dashboard');
+                }}
+                className="hover:text-indigo-600 dark:hover:text-indigo-400 transition text-left"
+              >
+                Founder Portal
+              </button>
+              <button
+                onClick={() => {
+                  switchRole('investor');
+                  setActiveView('investor-dashboard');
+                }}
+                className="hover:text-emerald-600 dark:hover:text-emerald-400 transition text-left"
+              >
+                Investor Hub
+              </button>
+              <button
+                onClick={() => {
+                  switchRole('mentor');
+                  setActiveView('mentor-dashboard');
+                }}
+                className="hover:text-amber-600 dark:hover:text-amber-400 transition text-left"
+              >
+                Mentor Advisory
+              </button>
+              <button
+                onClick={() => {
+                  switchRole('admin');
+                  setActiveView('admin-dashboard');
+                }}
+                className="hover:text-rose-600 dark:hover:text-rose-400 transition text-left"
+              >
+                Super Admin Panel
+              </button>
+            </div>
+          </div>
 
           {/* Col 4: Legal & Guidelines */}
           <div className="space-y-2">
@@ -99,23 +142,13 @@ export const Footer: React.FC = () => {
               </li>
             </ul>
           </div>
-
-
-
-
-
-          
         </div>
-
-
-   
-        
 
         <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px]">
           <p>© 2025 RiseUp Startup Ecosystem. All rights reserved.</p>
           <div className="flex items-center gap-1">
             <ShieldCheck className="w-3.5 h-3.5 text-blue-700 dark:text-blue-400" />
-            <span>Zero-transaction professional networking architecture</span>
+            <span>Zer-transaction professional networking architecture</span>
           </div>
         </div>
       </div>
