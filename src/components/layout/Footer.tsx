@@ -102,46 +102,7 @@ export const Footer: React.FC = () => {
 
 
 
-   {/* Col 4: Legal & Guidelines */}
-          <div className="space-y-2">
-            <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
-              Information
-            </h4>
-            <ul className="space-y-1.5">
-              <li>
-                <button
-                  onClick={() => setActiveView('about')}
-                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-                >
-                  About RiseUp
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => setActiveView('features')}
-                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-                >
-                  Platform Features
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => setActiveView('help')}
-                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-                >
-                  Help Center & FAQs
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => setActiveView('terms')}
-                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-                >
-                  Privacy & Terms
-                </button>
-              </li>
-            </ul>
-          </div>
+
 
           
         </div>
