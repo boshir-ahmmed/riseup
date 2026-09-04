@@ -90,7 +90,6 @@ export const Footer: React.FC = () => {
               >
                 Mentor Advisory
               </button>
-             
             </div>
           </div>
 
