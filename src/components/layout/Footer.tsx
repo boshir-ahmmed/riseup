@@ -57,41 +57,7 @@ export const Footer: React.FC = () => {
             </ul>
           </div>
 
-          {/* Col 3: Role Switcher Quick Access */}
-          <div className="space-y-2">
-            <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
-              Demo Switch Roles
-            </h4>
-            <div className="flex flex-col gap-1 text-left">
-              <button
-                onClick={() => {
-                  switchRole('founder');
-                  setActiveView('founder-dashboard');
-                }}
-                className="hover:text-indigo-600 dark:hover:text-indigo-400 transition text-left"
-              >
-                Founder Portal
-              </button>
-              <button
-                onClick={() => {
-                  switchRole('investor');
-                  setActiveView('investor-dashboard');
-                }}
-                className="hover:text-emerald-600 dark:hover:text-emerald-400 transition text-left"
-              >
-                Investor Hub
-              </button>
-              <button
-                onClick={() => {
-                  switchRole('mentor');
-                  setActiveView('mentor-dashboard');
-                }}
-                className="hover:text-amber-600 dark:hover:text-amber-400 transition text-left"
-              >
-                Mentor Advisory
-              </button>
-            </div>
-          </div>
+         
 
           {/* Col 4: Legal & Guidelines */}
           <div className="space-y-2">
