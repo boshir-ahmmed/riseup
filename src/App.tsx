@@ -28,7 +28,6 @@ import { SupabaseManagerModal } from './components/modals/SupabaseManagerModal';
 import { AuthModal } from './components/modals/AuthModal';
 import { LoginPage } from './components/auth/LoginPage';
 import { ToastContainer } from './components/common/ToastContainer';
-import { AudioCallModal } from './components/common/AudioCallModal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 const AppContent: React.FC = () => {
@@ -161,7 +160,6 @@ const AppContent: React.FC = () => {
       <AuthModal />
 
       {/* Global Interactive Overlays */}
-      <AudioCallModal />
       <ToastContainer />
     </div>
   );

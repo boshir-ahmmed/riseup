@@ -1052,9 +1052,137 @@ export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   }
 ];
 
-export const INITIAL_CONVERSATIONS: Conversation[] = [];
+export const INITIAL_CONVERSATIONS: Conversation[] = [
+  {
+    id: 'conv-1',
+    participantA: 'user-admin',
+    participantB: 'user-founder-1',
+    lastMessage: 'Thanks! We just updated our Q2 clinical traction metrics.',
+    lastTimestamp: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
+    unreadCount: 0,
+    isPinned: true,
+    isMuted: false,
+    otherUser: {
+      id: 'user-founder-1',
+      name: 'Sarah Chen',
+      avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
+      role: 'founder',
+      title: 'Founder & CEO at NeuroPulse AI',
+      company: 'NeuroPulse AI',
+      isOnline: true,
+      lastSeen: 'Active now'
+    }
+  },
+  {
+    id: 'conv-2',
+    participantA: 'user-admin',
+    participantB: 'user-investor-1',
+    lastMessage: 'Looking forward to reviewing the round details this week.',
+    lastTimestamp: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
+    unreadCount: 1,
+    isPinned: false,
+    isMuted: false,
+    otherUser: {
+      id: 'user-investor-1',
+      name: 'Marcus Vance',
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+      role: 'investor',
+      title: 'General Partner at Apex Venture Capital',
+      company: 'Apex Venture Capital',
+      isOnline: true,
+      lastSeen: 'Active now'
+    }
+  },
+  {
+    id: 'conv-3',
+    participantA: 'user-admin',
+    participantB: 'user-mentor-1',
+    lastMessage: 'Happy to do an advisory session on your pricing structure.',
+    lastTimestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+    unreadCount: 0,
+    isPinned: false,
+    isMuted: false,
+    otherUser: {
+      id: 'user-mentor-1',
+      name: 'Dr. Elena Rostova',
+      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+      role: 'mentor',
+      title: 'Executive AI Advisor | Ex-VP Product',
+      company: 'Scale Advisory Labs',
+      isOnline: false,
+      lastSeen: '2h ago'
+    }
+  }
+];
 
-export const INITIAL_MESSAGES: MessageItem[] = [];
+export const INITIAL_MESSAGES: MessageItem[] = [
+  {
+    id: 'msg-1',
+    conversationId: 'conv-1',
+    senderId: 'user-founder-1',
+    senderName: 'Sarah Chen',
+    senderAvatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
+    senderRole: 'founder',
+    recipientId: 'user-admin',
+    recipientName: 'You',
+    text: 'Hello! Welcome to RiseUp. Excited to share our latest NeuroPulse progress with you.',
+    timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+    status: 'delivered'
+  },
+  {
+    id: 'msg-2',
+    conversationId: 'conv-1',
+    senderId: 'user-admin',
+    senderName: 'You',
+    senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    senderRole: 'admin',
+    recipientId: 'user-founder-1',
+    recipientName: 'Sarah Chen',
+    text: 'Great to connect Sarah! How is the neural interface trial progressing?',
+    timestamp: new Date(Date.now() - 1000 * 60 * 40).toISOString(),
+    status: 'delivered'
+  },
+  {
+    id: 'msg-3',
+    conversationId: 'conv-1',
+    senderId: 'user-founder-1',
+    senderName: 'Sarah Chen',
+    senderAvatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
+    senderRole: 'founder',
+    recipientId: 'user-admin',
+    recipientName: 'You',
+    text: 'Thanks! We just updated our Q2 clinical traction metrics.',
+    timestamp: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
+    status: 'delivered',
+    reactions: { '❤️': ['You'] }
+  },
+  {
+    id: 'msg-4',
+    conversationId: 'conv-2',
+    senderId: 'user-investor-1',
+    senderName: 'Marcus Vance',
+    senderAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    senderRole: 'investor',
+    recipientId: 'user-admin',
+    recipientName: 'You',
+    text: 'Looking forward to reviewing the round details this week.',
+    timestamp: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
+    status: 'delivered'
+  },
+  {
+    id: 'msg-5',
+    conversationId: 'conv-3',
+    senderId: 'user-mentor-1',
+    senderName: 'Dr. Elena Rostova',
+    senderAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+    senderRole: 'mentor',
+    recipientId: 'user-admin',
+    recipientName: 'You',
+    text: 'Happy to do an advisory session on your pricing structure.',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+    status: 'delivered'
+  }
+];
 
 export const INITIAL_INVESTOR_REQUESTS: InvestorRequest[] = [
   {

@@ -3,12 +3,7 @@ import {
   Search,
   Send,
   Paperclip,
-  Phone,
-  Video,
-  MoreVertical,
   Smile,
-  Mic,
-  MicOff,
   SquarePen,
   Pin,
   BellOff,
@@ -20,7 +15,6 @@ import {
   ChevronUp,
   Image as ImageIcon,
   FileText,
-  Calendar,
   Sparkles,
   Info,
   Check,
@@ -30,8 +24,7 @@ import {
   ArrowDown,
   User as UserIcon,
   UploadCloud,
-  Loader2,
-  Cloud
+  Loader2
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Conversation, MessageItem, User, UserRole } from '../../types';
@@ -58,7 +51,6 @@ export const MessagesPage: React.FC = () => {
     setActiveConversationId,
     sendMessage,
     reactToMessage,
-    respondToMeetingInvite,
     deleteMessage,
     deleteConversation,
     toggleStarMessage,
@@ -67,7 +59,6 @@ export const MessagesPage: React.FC = () => {
     startConversationWithUser,
     isTyping,
     typingUser,
-    startCallWithUser,
     showToast,
     setSelectedUserId,
     setSelectedStartupId,
@@ -91,17 +82,6 @@ export const MessagesPage: React.FC = () => {
   // Replying To Message State
   const [replyingToMessage, setReplyingToMessage] = useState<MessageItem | null>(null);
 
-  // Voice Note Recording Simulation State
-  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
-  const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const recordingTimerRef = useRef<any>(null);
-
-  // Meeting scheduler modal state
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [meetingTopic, setMeetingTopic] = useState('Product & Seed Round Advisory');
-  const [meetingDate, setMeetingDate] = useState('Tomorrow');
-  const [meetingTime, setMeetingTime] = useState('2:00 PM PST');
-
   // Media Lightbox Modal
   const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
 
@@ -118,21 +98,6 @@ export const MessagesPage: React.FC = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, activeConversationId, isTyping]);
-
-  // Voice note timer effect
-  useEffect(() => {
-    if (isRecordingVoice) {
-      setRecordingSeconds(0);
-      recordingTimerRef.current = setInterval(() => {
-        setRecordingSeconds(prev => prev + 1);
-      }, 1000);
-    } else {
-      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-    }
-    return () => {
-      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-    };
-  }, [isRecordingVoice]);
 
   // Active conversation object
   const activeConversation = conversations.find(c => c.id === activeConversationId) || conversations[0];
@@ -225,30 +190,6 @@ export const MessagesPage: React.FC = () => {
     setInputText('');
     setReplyingToMessage(null);
     setShowEmojiPicker(false);
-  };
-
-  // Send voice note
-  const handleSendVoiceNote = () => {
-    if (!activeConversation) return;
-    setIsRecordingVoice(false);
-    const duration = Math.max(2, recordingSeconds);
-
-    sendMessage(
-      activeConversation.otherUser.id,
-      '',
-      undefined,
-      {
-        voiceNote: {
-          durationSec: duration,
-          audioWaveform: Array.from({ length: 18 }, () => Math.floor(Math.random() * 70) + 25)
-        }
-      }
-    );
-  };
-
-  const handleCancelVoiceNote = () => {
-    setIsRecordingVoice(false);
-    setRecordingSeconds(0);
   };
 
   // Send sample photo attachment
@@ -379,25 +320,6 @@ export const MessagesPage: React.FC = () => {
       {
         attachmentName: docName,
         attachmentSize: docSize
-      }
-    );
-  };
-
-  // Send meeting invite
-  const handleSendMeetingInvite = () => {
-    if (!activeConversation) return;
-    setShowScheduleModal(false);
-    sendMessage(
-      activeConversation.otherUser.id,
-      `Scheduled ecosystem sync: "${meetingTopic}" on ${meetingDate} at ${meetingTime}.`,
-      undefined,
-      {
-        meetingInvite: {
-          topic: meetingTopic,
-          date: meetingDate,
-          time: meetingTime,
-          status: 'pending'
-        }
       }
     );
   };
@@ -773,42 +695,6 @@ export const MessagesPage: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() =>
-                  startCallWithUser({
-                    id: activeConversation.otherUser.id,
-                    name: activeConversation.otherUser.name,
-                    avatar: activeConversation.otherUser.avatar,
-                    role: activeConversation.otherUser.role,
-                    title: activeConversation.otherUser.title,
-                    company: activeConversation.otherUser.company
-                  } as User)
-                }
-                className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                title="Audio Call"
-              >
-                <Phone className="w-4 h-4" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  startCallWithUser({
-                    id: activeConversation.otherUser.id,
-                    name: activeConversation.otherUser.name,
-                    avatar: activeConversation.otherUser.avatar,
-                    role: activeConversation.otherUser.role,
-                    title: activeConversation.otherUser.title,
-                    company: activeConversation.otherUser.company
-                  } as User)
-                }
-                className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                title="Start Video Meeting"
-              >
-                <Video className="w-4 h-4" />
-              </button>
-
-              <button
-                type="button"
                 onClick={() => setShowInChatSearch(!showInChatSearch)}
                 className={`p-2 rounded-xl transition cursor-pointer ${
                   showInChatSearch
@@ -973,7 +859,6 @@ export const MessagesPage: React.FC = () => {
                     onReply={m => setReplyingToMessage(m)}
                     onStar={toggleStarMessage}
                     onDelete={deleteMessage}
-                    onRespondMeeting={respondToMeetingInvite}
                     onImageClick={url => setLightboxImageUrl(url)}
                     onScrollToMessage={scrollToMessage}
                     searchHighlight={inChatSearchTerm}
@@ -1143,22 +1028,6 @@ export const MessagesPage: React.FC = () => {
                   <FileText className="w-3.5 h-3.5 text-amber-500" />
                   <span className="text-[11px]">Send Sample One-Pager</span>
                 </button>
-
-                <div className="h-px bg-slate-100 dark:bg-slate-800 my-0.5" />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAttachMenu(false);
-                    setShowScheduleModal(true);
-                  }}
-                  className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 transition cursor-pointer"
-                >
-                  <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                    <Calendar className="w-4 h-4" />
-                  </div>
-                  <span className="font-semibold">Schedule Meeting</span>
-                </button>
               </div>
             )}
 
@@ -1170,116 +1039,73 @@ export const MessagesPage: React.FC = () => {
               </div>
             )}
 
-            {/* Active Voice Recording Bar vs Normal Message Input */}
-            {isRecordingVoice ? (
-              <div className="flex items-center justify-between gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-2xl p-2.5 animate-in fade-in duration-200">
-                <div className="flex items-center gap-3">
-                  <span className="w-3 h-3 rounded-full bg-rose-500 animate-ping" />
-                  <span className="font-mono text-xs font-bold text-rose-600 dark:text-rose-400">
-                    Recording audio • {Math.floor(recordingSeconds / 60)}:
-                    {(recordingSeconds % 60).toString().padStart(2, '0')}
-                  </span>
-                  {/* Wave animation */}
-                  <div className="flex items-center gap-0.5 h-4">
-                    {[30, 80, 45, 90, 60, 100, 50, 75, 40].map((h, i) => (
-                      <span
-                        key={i}
-                        className="w-1 bg-rose-500 rounded-full animate-pulse"
-                        style={{ height: `${h}%` }}
-                      />
-                    ))}
-                  </div>
-                </div>
+            <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+              {/* Emoji Picker Trigger */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEmojiPicker(!showEmojiPicker);
+                  setShowAttachMenu(false);
+                }}
+                className={`p-2.5 rounded-xl transition cursor-pointer ${
+                  showEmojiPicker
+                    ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+                title="Insert emoji"
+              >
+                <Smile className="w-5 h-5" />
+              </button>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleCancelVoiceNote}
-                    className="p-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-300 transition cursor-pointer"
-                    title="Cancel recording"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+              {/* Attachment Menu Trigger */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAttachMenu(!showAttachMenu);
+                  setShowEmojiPicker(false);
+                }}
+                className={`p-2.5 rounded-xl transition cursor-pointer ${
+                  showAttachMenu
+                    ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+                title="Attach file or photo"
+              >
+                <Paperclip className="w-5 h-5" />
+              </button>
 
-                  <button
-                    type="button"
-                    onClick={handleSendVoiceNote}
-                    className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Send Voice</span>
-                  </button>
-                </div>
+              {/* Text input */}
+              <div className="flex-1 relative">
+                <input
+                  ref={messageInputRef}
+                  type="text"
+                  placeholder="Type a message..."
+                  value={inputText}
+                  onChange={e => setInputText(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  className="w-full px-4 py-2.5 text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 border border-transparent rounded-2xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-slate-900 transition-all"
+                />
               </div>
-            ) : (
-              <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                {/* Emoji Picker Trigger */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowEmojiPicker(!showEmojiPicker);
-                    setShowAttachMenu(false);
-                  }}
-                  className={`p-2.5 rounded-xl transition cursor-pointer ${
-                    showEmojiPicker
-                      ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400'
-                      : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                  title="Insert emoji"
-                >
-                  <Smile className="w-5 h-5" />
-                </button>
 
-                {/* Attachment Menu Trigger */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAttachMenu(!showAttachMenu);
-                    setShowEmojiPicker(false);
-                  }}
-                  className={`p-2.5 rounded-xl transition cursor-pointer ${
-                    showAttachMenu
-                      ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400'
-                      : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                  title="Attach file, photo or schedule sync"
-                >
-                  <Paperclip className="w-5 h-5" />
-                </button>
-
-                {/* Text input */}
-                <div className="flex-1 relative">
-                  <input
-                    ref={messageInputRef}
-                    type="text"
-                    placeholder="Type a message..."
-                    value={inputText}
-                    onChange={e => setInputText(e.target.value)}
-                    className="w-full px-4 py-2.5 text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 border border-transparent rounded-2xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-slate-900 transition-all"
-                  />
-                </div>
-
-                {/* Voice Note Trigger if empty, else Send Button */}
-                {inputText.trim().length === 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setIsRecordingVoice(true)}
-                    className="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition transform active:scale-95 cursor-pointer shadow-xs"
-                    title="Record voice note"
-                  >
-                    <Mic className="w-5 h-5" />
-                  </button>
-                ) : (
-                  <button
-                    type="submit"
-                    className="p-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 transition transform hover:scale-105 active:scale-95 cursor-pointer"
-                    title="Send message"
-                  >
-                    <Send className="w-5 h-5" />
-                  </button>
-                )}
-              </form>
-            )}
+              {/* Dependable Send Button */}
+              <button
+                type="submit"
+                disabled={!inputText.trim()}
+                className={`p-2.5 rounded-2xl transition transform active:scale-95 flex items-center justify-center cursor-pointer ${
+                  inputText.trim()
+                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 hover:scale-105'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'
+                }`}
+                title="Send message"
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            </form>
           </div>
         </div>
       ) : (
@@ -1353,7 +1179,6 @@ export const MessagesPage: React.FC = () => {
           messages={activeMessages}
           isOpen={showInfoDrawer}
           onClose={() => setShowInfoDrawer(false)}
-          onStartAudioCall={user => startCallWithUser(user)}
           onTogglePin={togglePinConversation}
           onToggleMute={toggleMuteConversation}
           onImageClick={url => setLightboxImageUrl(url)}
@@ -1408,84 +1233,6 @@ export const MessagesPage: React.FC = () => {
               className="max-h-[80vh] max-w-full rounded-2xl object-contain shadow-2xl border border-white/10"
               onClick={e => e.stopPropagation()}
             />
-          </div>
-        </div>
-      )}
-
-      {/* ------------------------------------------------------------- */}
-      {/* MODAL 3: Schedule Meeting Dialog                             */}
-      {/* ------------------------------------------------------------- */}
-      {showScheduleModal && (
-        <div
-          id="schedule-meeting-modal"
-          className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4"
-        >
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
-                  <Calendar className="w-5 h-5" />
-                </div>
-                <h3 className="font-bold text-base text-slate-900 dark:text-white">Propose Meeting Sync</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowScheduleModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Meeting Topic</label>
-                <input
-                  type="text"
-                  value={meetingTopic}
-                  onChange={e => setMeetingTopic(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Proposed Date</label>
-                  <input
-                    type="text"
-                    value={meetingDate}
-                    onChange={e => setMeetingDate(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Proposed Time</label>
-                  <input
-                    type="text"
-                    value={meetingTime}
-                    onChange={e => setMeetingTime(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2 mt-6">
-              <button
-                type="button"
-                onClick={() => setShowScheduleModal(false)}
-                className="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-200 transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSendMeetingInvite}
-                className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition"
-              >
-                Send Invite Card
-              </button>
-            </div>
           </div>
         </div>
       )}

@@ -4,18 +4,14 @@ import {
   CheckCheck,
   FileText,
   Download,
-  Calendar,
   Reply,
   Star,
   Copy,
   Trash2,
-  MoreHorizontal,
-  ExternalLink,
   ZoomIn,
   Heart
 } from 'lucide-react';
 import { MessageItem, User } from '../../types';
-import { VoiceNotePlayer } from './VoiceNotePlayer';
 
 interface MessageItemBubbleProps {
   message: MessageItem;
@@ -25,7 +21,6 @@ interface MessageItemBubbleProps {
   onReply: (message: MessageItem) => void;
   onStar: (messageId: string) => void;
   onDelete: (messageId: string) => void;
-  onRespondMeeting: (messageId: string, status: 'confirmed' | 'declined') => void;
   onImageClick?: (url: string) => void;
   onScrollToMessage?: (messageId: string) => void;
   searchHighlight?: string;
@@ -39,13 +34,12 @@ export const MessageItemBubble: React.FC<MessageItemBubbleProps> = ({
   onReply,
   onStar,
   onDelete,
-  onRespondMeeting,
   onImageClick,
   onScrollToMessage,
   searchHighlight
 }) => {
-  const [showOptionsDropdown, setShowOptionsDropdown] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
   const [showHeartBurst, setShowHeartBurst] = useState(false);
 
   const loveUsers = (message.reactions?.['❤️'] || []) as string[];
@@ -63,9 +57,16 @@ export const MessageItemBubble: React.FC<MessageItemBubbleProps> = ({
   };
 
   const handleCopyText = () => {
-    navigator.clipboard.writeText(message.text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (message.text) {
+      navigator.clipboard.writeText(message.text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleDownloadFile = () => {
+    setDownloaded(true);
+    setTimeout(() => setDownloaded(false), 2500);
   };
 
   // Text highlight helper
@@ -227,24 +228,13 @@ export const MessageItemBubble: React.FC<MessageItemBubbleProps> = ({
             </div>
           )}
 
-          {/* Voice Note Audio Component */}
-          {message.voiceNote && (
-            <div className="mb-1">
-              <VoiceNotePlayer
-                durationSec={message.voiceNote.durationSec}
-                waveform={message.voiceNote.audioWaveform}
-                isMine={isMine}
-              />
-            </div>
-          )}
-
           {/* Document / Pitch Deck Attachment */}
           {message.attachmentName && (
             <div
               className={`p-2.5 rounded-xl flex items-center justify-between gap-3 border mb-2 ${
                 isMine
                   ? 'bg-indigo-800/50 border-indigo-400/40 text-white'
-                  : 'bg-slate-50 dark:bg-slate-850 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white'
+                  : 'bg-slate-50 dark:bg-slate-850 border-slate-200 dark:border-slate-750 text-slate-900 dark:text-white'
               }`}
             >
               <div className="flex items-center gap-2.5 truncate">
@@ -253,76 +243,27 @@ export const MessageItemBubble: React.FC<MessageItemBubbleProps> = ({
                 </div>
                 <div className="truncate">
                   <p className="text-xs font-bold truncate">{message.attachmentName}</p>
-                  <p className="text-[10px] opacity-75">{message.attachmentSize || 'Verified PDF Document'}</p>
+                  <p className="text-[10px] opacity-75">{message.attachmentSize || 'Shared document'}</p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => alert(`Downloaded file: ${message.attachmentName}`)}
+                onClick={handleDownloadFile}
                 className={`p-2 rounded-lg transition shrink-0 cursor-pointer ${
                   isMine ? 'hover:bg-indigo-700 text-white' : 'hover:bg-slate-200 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400'
                 }`}
                 title="Download Attachment"
               >
-                <Download className="w-4 h-4" />
+                {downloaded ? <Check className="w-4 h-4 text-emerald-400" /> : <Download className="w-4 h-4" />}
               </button>
             </div>
           )}
 
           {/* Message Text Body */}
-          {message.text && !message.voiceNote && (
+          {message.text && (
             <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">
               {renderHighlightedText(message.text)}
             </p>
-          )}
-
-          {/* Meeting / Sync Card */}
-          {message.meetingInvite && (
-            <div
-              className={`p-3 rounded-xl border space-y-2 mt-2 ${
-                isMine
-                  ? 'bg-indigo-800/60 border-indigo-400/30'
-                  : 'bg-slate-50 dark:bg-slate-850 border-slate-200 dark:border-slate-700'
-              }`}
-            >
-              <div className="flex items-center gap-1.5 text-xs font-bold">
-                <Calendar className="w-4 h-4 text-indigo-400" />
-                <span>{message.meetingInvite.topic}</span>
-              </div>
-              <div className="text-[11px] opacity-90">
-                📅 {message.meetingInvite.date} at {message.meetingInvite.time}
-              </div>
-
-              {message.meetingInvite.status === 'pending' ? (
-                !isMine ? (
-                  <div className="flex gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => onRespondMeeting(message.id, 'confirmed')}
-                      className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-xs transition cursor-pointer"
-                    >
-                      Accept & Sync Calendar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onRespondMeeting(message.id, 'declined')}
-                      className="px-3 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 font-medium text-[11px] transition cursor-pointer"
-                    >
-                      Decline
-                    </button>
-                  </div>
-                ) : (
-                  <div className="text-[10px] opacity-75 italic">
-                    Pending recipient confirmation...
-                  </div>
-                )
-              ) : (
-                <div className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
-                  <Check className="w-3.5 h-3.5" />
-                  <span>{message.meetingInvite.status === 'confirmed' ? 'Meeting Confirmed & Synced' : 'Meeting Declined'}</span>
-                </div>
-              )}
-            </div>
           )}
 
           {/* Message Meta Info: Timestamp, Starred status, and Double Blue Checkmarks */}

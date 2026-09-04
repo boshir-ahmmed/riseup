@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import {
   X,
-  Phone,
-  Video,
   Pin,
   BellOff,
   Bell,
@@ -24,8 +22,6 @@ interface ChatContactInfoDrawerProps {
   messages: MessageItem[];
   isOpen: boolean;
   onClose: () => void;
-  onStartAudioCall: (user: User) => void;
-  onStartVideoCall?: (user: User) => void;
   onTogglePin: (convId: string) => void;
   onToggleMute: (convId: string) => void;
   onImageClick?: (url: string) => void;
@@ -40,7 +36,6 @@ export const ChatContactInfoDrawer: React.FC<ChatContactInfoDrawerProps> = ({
   messages,
   isOpen,
   onClose,
-  onStartAudioCall,
   onTogglePin,
   onToggleMute,
   onImageClick,
@@ -130,16 +125,7 @@ export const ChatContactInfoDrawer: React.FC<ChatContactInfoDrawerProps> = ({
         )}
 
         {/* Quick actions bar */}
-        <div className="grid grid-cols-3 gap-2 w-full mt-4">
-          <button
-            type="button"
-            onClick={() => onStartAudioCall(targetUser)}
-            className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
-          >
-            <Phone className="w-4 h-4 mb-1" />
-            <span className="text-[11px] font-medium">Audio Call</span>
-          </button>
-
+        <div className="grid grid-cols-2 gap-2 w-full mt-4">
           <button
             type="button"
             onClick={() => onTogglePin(conversation.id)}

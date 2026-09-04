@@ -138,11 +138,6 @@ interface AppContextType {
   isTyping: boolean;
   typingUser: string | null;
   
-  // Audio / Video Call Simulation
-  activeCallUser: User | null;
-  startCallWithUser: (user: User) => void;
-  endCall: () => void;
-  
   // Actions - Notifications & Real-Time Toasts
   toasts: ToastNotification[];
   showToast: (title: string, message: string, type?: ToastNotification['type'], senderAvatar?: string) => void;
@@ -239,17 +234,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     safeGetItem<NotificationItem[]>(LOCAL_STORAGE_KEY + '_notifications', INITIAL_NOTIFICATIONS)
   );
 
-  const DEMO_CONV_IDS = ['conv-1', 'conv-2', 'conv-3', 'conv-4'];
-  const DEMO_MSG_IDS = ['msg-1', 'msg-2', 'msg-3', 'msg-201', 'msg-202', 'msg-203', 'msg-301'];
-
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     const raw = safeGetItem<Conversation[]>(LOCAL_STORAGE_KEY + '_conversations', INITIAL_CONVERSATIONS);
-    return (raw || []).filter(c => !DEMO_CONV_IDS.includes(c.id));
+    if (raw && raw.length > 0) return raw;
+    return INITIAL_CONVERSATIONS;
   });
 
   const [messages, setMessages] = useState<MessageItem[]>(() => {
     const raw = safeGetItem<MessageItem[]>(LOCAL_STORAGE_KEY + '_messages', INITIAL_MESSAGES);
-    return (raw || []).filter(m => !DEMO_MSG_IDS.includes(m.id) && !DEMO_CONV_IDS.includes(m.conversationId));
+    if (raw && raw.length > 0) return raw;
+    return INITIAL_MESSAGES;
   });
 
   const [investorRequests, setInvestorRequests] = useState<InvestorRequest[]>(() =>
@@ -305,7 +299,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Real-time Chat & Interaction states
   const [isTyping, setIsTyping] = useState(false);
   const [typingUser, setTypingUser] = useState<string | null>(null);
-  const [activeCallUser, setActiveCallUser] = useState<User | null>(null);
   const [soundMuted, setSoundMuted] = useState<boolean>(() => soundManager.getMuted());
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
 
@@ -346,17 +339,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const dismissToast = (id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
-  };
-
-  const startCallWithUser = (user: User) => {
-    setActiveCallUser(user);
-    soundManager.playPop();
-    showToast(`Calling ${user.name}...`, 'Live audio connection initiated.', 'message', user.avatar);
-  };
-
-  const endCall = () => {
-    setActiveCallUser(null);
-    soundManager.playPop();
   };
 
   // Persist key states
@@ -1775,23 +1757,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     attachmentName?: string,
     options?: Partial<MessageItem>
   ) => {
-    if (!text.trim() && !attachmentName && !options?.mediaUrl && !options?.voiceNote) return;
+    if (!text.trim() && !attachmentName && !options?.mediaUrl) return;
 
     soundManager.playPop();
 
-    const recipientUser = users.find(u => u.id === recipientId);
-    if (!recipientUser) return;
+    const recipientUser =
+      users.find(u => u.id === recipientId) ||
+      conversations.find(c => c.otherUser?.id === recipientId)?.otherUser || {
+        id: recipientId,
+        name: 'Member',
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        role: 'founder' as UserRole,
+        title: 'Founder & CEO',
+        company: 'RiseUp Startup'
+      };
 
-    let conv = conversations.find(
-      c =>
-        (c.participantA === currentUser.id && c.participantB === recipientId) ||
-        (c.participantB === currentUser.id && c.participantA === recipientId)
-    );
+    let conv =
+      (activeConversationId ? conversations.find(c => c.id === activeConversationId) : null) ||
+      conversations.find(
+        c =>
+          (c.participantA === currentUser.id && c.participantB === recipientId) ||
+          (c.participantB === currentUser.id && c.participantA === recipientId) ||
+          c.otherUser?.id === recipientId
+      );
 
     const convId = conv ? conv.id : `conv-${Date.now()}`;
 
     const newMsg: MessageItem = {
-      id: `msg-${Date.now()}`,
+      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
       conversationId: convId,
       senderId: currentUser.id,
       senderName: currentUser.name,
@@ -1799,7 +1792,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       senderRole: currentUser.role,
       recipientId,
       recipientName: recipientUser.name,
-      text: text || (options?.voiceNote ? '🎤 Voice note' : options?.attachmentName ? `📎 ${options.attachmentName}` : options?.mediaUrl ? '🖼️ Photo' : ''),
+      text: text.trim() || (options?.attachmentName ? `📎 ${options.attachmentName}` : options?.mediaUrl ? '🖼️ Photo' : ''),
       timestamp: new Date().toISOString(),
       status: 'sent',
       attachmentName,
@@ -1809,7 +1802,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setMessages(prev => [...prev, newMsg]);
     if (isSupabaseConfigured) syncMessageToSupabase(newMsg);
 
-    const lastPreview = text || (options?.voiceNote ? '🎤 Voice note' : options?.attachmentName ? `📎 ${options.attachmentName}` : options?.mediaUrl ? '🖼️ Photo' : 'Message');
+    const lastPreview = text.trim() || (options?.attachmentName ? `📎 ${options.attachmentName}` : options?.mediaUrl ? '🖼️ Photo' : 'Message');
 
     let activeConvObj: Conversation;
 
@@ -1835,8 +1828,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           name: recipientUser.name,
           avatar: recipientUser.avatar,
           role: recipientUser.role,
-          title: recipientUser.title,
-          company: recipientUser.company,
+          title: ('title' in recipientUser && typeof (recipientUser as any).title === 'string') ? (recipientUser as any).title : 'Member',
+          company: ('company' in recipientUser && typeof (recipientUser as any).company === 'string') ? (recipientUser as any).company : 'RiseUp Ecosystem',
           isOnline: true,
           lastSeen: 'Active now'
         }
@@ -2247,9 +2240,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         startConversationWithUser,
         isTyping,
         typingUser,
-        activeCallUser,
-        startCallWithUser,
-        endCall,
         toasts,
         showToast,
         dismissToast,

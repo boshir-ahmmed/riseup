@@ -19,7 +19,6 @@ import {
   CheckCircle2,
   Trash2,
   ExternalLink,
-  PhoneCall,
   User as UserIcon
 } from 'lucide-react';
 import { RoleBadge } from '../layout/RoleBadge';
@@ -42,7 +41,6 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenDetails }) => {
     setSelectedUserId,
     setActiveView,
     sendMessage,
-    startCallWithUser,
     users
   } = useApp();
 
@@ -268,14 +266,6 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenDetails }) => {
                       >
                         <MessageCircle className="w-3.5 h-3.5 text-indigo-500" />
                         <span>Direct Message</span>
-                      </button>
-
-                      <button
-                        onClick={() => startCallWithUser(authorUser)}
-                        className="w-full text-left px-3 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md flex items-center gap-2 cursor-pointer"
-                      >
-                        <PhoneCall className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>Encrypted Audio Call</span>
                       </button>
                     </>
                   )}
